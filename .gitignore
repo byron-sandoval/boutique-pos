@@ -1,0 +1,11 @@
+# Variables de entorno y contraseñas
+.env
+.env.*
+!.env.example
+
+# Archivos temporales
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
