@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-pos-schema
+      author: boutique-pos
+      dbms: postgresql
+      runInTransaction: true
+      changes:
+        - sqlFile:
+            path: changes/001-create-pos-schema.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 002-insert-currencies
+      author: boutique-pos
+      dbms: postgresql
+      runInTransaction: true
+      changes:
+        - sqlFile:
+            path: changes/002-insert-currencies.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            stripComments: true
