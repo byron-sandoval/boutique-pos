@@ -1,0 +1,32 @@
+{
+  "realm": "boutique",
+  "enabled": true,
+  "displayName": "Boutique POS",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN", "description": "Administrador del POS" },
+      { "name": "CAJERO", "description": "Operador de caja" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "boutique-ui",
+      "name": "Boutique POS UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:5173",
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ]
+}
