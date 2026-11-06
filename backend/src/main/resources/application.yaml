@@ -18,3 +18,19 @@ spring:
   liquibase:
     enabled: ${LIQUIBASE_ENABLED:true}
     change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9081/realms/boutique}
+          audiences: ${KEYCLOAK_API_AUDIENCE:boutique-api}
+
+app:
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  keycloak:
+    admin:
+      server-url: ${KEYCLOAK_SERVER_URL:http://localhost:9081}
+      realm: ${KEYCLOAK_REALM:boutique}
+      client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:boutique-api}
+      client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}

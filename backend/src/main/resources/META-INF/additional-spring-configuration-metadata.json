@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "app.frontend-origin",
+      "type": "java.lang.String",
+      "description": "Origen del frontend permitido por CORS.",
+      "defaultValue": "http://localhost:5173"
+    }
+  ]
+}
