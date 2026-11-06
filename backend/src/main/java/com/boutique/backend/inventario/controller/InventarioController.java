@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,10 +27,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/inventarios")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class InventarioController {
 
     private final InventarioService inventarioService;
 
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
     @GetMapping
     public PagedModel<InventarioResponse> listar(@RequestParam(required = false) @Positive Long sucursalId,
         @RequestParam(required = false) @Positive Long varianteId,
@@ -37,6 +40,7 @@ public class InventarioController {
         return new PagedModel<>(inventarioService.listar(sucursalId, varianteId, pageable));
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
     @GetMapping("/{id}")
     public InventarioResponse obtenerPorId(@PathVariable @Positive Long id) {
         return inventarioService.obtenerPorId(id);
