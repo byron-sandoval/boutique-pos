@@ -55,11 +55,11 @@ public class VentaAnulacionService {
         Usuario usuario = usuarioActual();
         // Primero se bloquea la caja, como al registrar ventas. La proyección no carga una venta sin bloquear.
         Long cajaId = ventaRepository.findSesionCajaId(id).orElseThrow(() -> noEncontrada(id));
-        SesionCaja caja = cajaService.obtenerParaVenta(cajaId, usuario.getId(), usuario.getSucursal().getId());
+        SesionCaja caja = cajaService.obtenerParaAnulacion(cajaId, usuario.getSucursal().getId());
         Venta venta = ventaRepository.findByIdForUpdate(id).orElseThrow(() -> noEncontrada(id));
         if (!venta.getSucursal().getId().equals(usuario.getSucursal().getId())
             || !venta.getSesionCaja().getId().equals(caja.getId())) {
-            throw new AccessDeniedException("La venta no pertenece a tu caja y sucursal.");
+            throw new AccessDeniedException("La venta no pertenece a la caja indicada o a tu sucursal.");
         }
         List<DetalleVenta> detalles = detalleRepository.findByVentaIdOrderByIdAsc(id);
         if (venta.getEstado() == EstadoVenta.ANULADA) {
@@ -103,6 +103,9 @@ public class VentaAnulacionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof JwtAuthenticationToken jwt) || !authentication.isAuthenticated()) {
             throw new AccessDeniedException("Se requiere un usuario autenticado para anular ventas.");
+        }
+        if (jwt.getAuthorities().stream().noneMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
+            throw new AccessDeniedException("Solo el ADMIN puede anular ventas.");
         }
         Usuario usuario = usuarioRepository.findByKeycloakId(jwt.getToken().getSubject())
             .orElseThrow(() -> new AccessDeniedException("El usuario debe estar registrado en el sistema."));

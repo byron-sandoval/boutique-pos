@@ -73,11 +73,20 @@ public class VentaService {
 
     public Page<VentaResumenResponse> listar(@Positive Long sucursalId, @Positive Long sesionCajaId,
         EstadoVenta estado, @NotNull Pageable pageable) {
-        return ventaRepository.buscar(sucursalId, sesionCajaId, estado, pageable).map(ventaMapper::toResumen);
+        Usuario usuario = usuarioActual();
+        Long usuarioPermitido = administradorConsulta(usuario) ? null : usuario.getId();
+        Long sucursalPermitida = usuario.getSucursal().getId();
+        if (sucursalId != null && !sucursalPermitida.equals(sucursalId)) {
+            throw new AccessDeniedException("Solo puedes consultar ventas de tu sucursal.");
+        }
+        return ventaRepository.buscar(sucursalPermitida, usuarioPermitido, sesionCajaId, estado, pageable)
+            .map(ventaMapper::toResumen);
     }
 
     public VentaResponse obtenerPorId(@NotNull @Positive Long id) {
-        Venta venta = ventaRepository.findById(id)
+        Usuario usuario = usuarioActual();
+        Long usuarioPermitido = administradorConsulta(usuario) ? null : usuario.getId();
+        Venta venta = ventaRepository.findVisibleById(id, usuario.getSucursal().getId(), usuarioPermitido)
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la venta con ID " + id + "."));
         return respuesta(venta, detalleRepository.findByVentaIdOrderByIdAsc(id));
     }
@@ -180,6 +189,16 @@ public class VentaService {
             throw new ConflictoException("El cliente debe estar activo.");
         }
         return cliente;
+    }
+
+    private boolean administradorConsulta(Usuario usuario) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean admin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean cajero = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_CAJERO"));
+        if ((!admin && !cajero) || !Boolean.TRUE.equals(usuario.getSucursal().getActiva())) {
+            throw new AccessDeniedException("Se requiere ADMIN o CAJERO con una sucursal activa para consultar ventas.");
+        }
+        return admin;
     }
 
     private Usuario usuarioActual() {

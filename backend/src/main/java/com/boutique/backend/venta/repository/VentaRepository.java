@@ -16,12 +16,21 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
 
     @Query("""
         select v from Venta v
-        where (:sucursalId is null or v.sucursal.id = :sucursalId)
+        where v.sucursal.id = :sucursalId
+          and (:usuarioId is null or v.usuario.id = :usuarioId)
           and (:sesionCajaId is null or v.sesionCaja.id = :sesionCajaId)
           and (:estado is null or v.estado = :estado)
         """)
-    Page<Venta> buscar(@Param("sucursalId") Long sucursalId, @Param("sesionCajaId") Long sesionCajaId,
-        @Param("estado") EstadoVenta estado, Pageable pageable);
+    Page<Venta> buscar(@Param("sucursalId") Long sucursalId, @Param("usuarioId") Long usuarioId,
+        @Param("sesionCajaId") Long sesionCajaId, @Param("estado") EstadoVenta estado, Pageable pageable);
+
+    @Query("""
+        select v from Venta v
+        where v.id = :id and v.sucursal.id = :sucursalId
+          and (:usuarioId is null or v.usuario.id = :usuarioId)
+        """)
+    Optional<Venta> findVisibleById(@Param("id") Long id, @Param("sucursalId") Long sucursalId,
+        @Param("usuarioId") Long usuarioId);
 
     @Query("select v.sesionCaja.id from Venta v where v.id = :id")
     Optional<Long> findSesionCajaId(@Param("id") Long id);

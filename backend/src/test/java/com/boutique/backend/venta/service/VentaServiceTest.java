@@ -36,10 +36,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -102,8 +107,12 @@ class VentaServiceTest {
     }
 
     private void autenticar() {
+        autenticar("ROLE_CAJERO");
+    }
+
+    private void autenticar(String rol) {
         Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-7").build();
-        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority(rol))));
         when(usuarios.findByKeycloakId("keycloak-7")).thenReturn(Optional.of(usuario));
     }
 
@@ -289,5 +298,126 @@ class VentaServiceTest {
         when(ventas.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("factura duplicada"));
         assertThrows(ConflictoException.class, () -> service.crear(solicitud()));
         verifyNoInteractions(detalles);
+    }
+
+    private Venta ventaGuardada() {
+        Venta venta = new Venta();
+        venta.setId(10L);
+        venta.setSucursal(sucursal);
+        venta.setUsuario(usuario);
+        venta.setMoneda(moneda);
+        venta.setSesionCaja(caja);
+        venta.setSerieFactura(serie);
+        venta.setNumeroFactura("FAC-000008");
+        venta.setNoFactura(8L);
+        venta.setTotal(new BigDecimal("207.00"));
+        return venta;
+    }
+
+    @Test
+    void cajeroListaSoloSusVentasAunqueNoEnvieFiltros() {
+        autenticar();
+        var pageable = PageRequest.of(0, 20);
+        when(ventas.buscar(2L, 7L, null, null, pageable))
+            .thenReturn(new PageImpl<>(List.of(ventaGuardada()), pageable, 1));
+        var r = service.listar(null, null, null, pageable);
+        assertEquals(1, r.getTotalElements());
+        assertEquals(7L, r.getContent().getFirst().usuarioId());
+        verify(ventas).buscar(2L, 7L, null, null, pageable);
+    }
+
+    @Test
+    void filtroDeCajaNoPermiteAlCajeroQuitarSuRestriccionDeUsuario() {
+        autenticar();
+        var pageable = PageRequest.of(0, 20);
+        when(ventas.buscar(2L, 7L, 99L, EstadoVenta.COMPLETADA, pageable))
+            .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        assertTrue(service.listar(null, 99L, EstadoVenta.COMPLETADA, pageable).isEmpty());
+        verify(ventas).buscar(2L, 7L, 99L, EstadoVenta.COMPLETADA, pageable);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_ADMIN", "ROLE_CAJERO"})
+    void noPermitePedirOtraSucursalEnElListado(String rol) {
+        autenticar(rol);
+        assertThrows(AccessDeniedException.class, () -> service.listar(9L, null, null, PageRequest.of(0, 20)));
+        verifyNoInteractions(ventas, detalles);
+    }
+
+    @Test
+    void adminListaVentasDeTodosLosCajerosDeSuSucursal() {
+        autenticar("ROLE_ADMIN");
+        Venta otra = ventaGuardada();
+        Usuario cajero = new Usuario();
+        cajero.setId(9L);
+        otra.setUsuario(cajero);
+        var pageable = PageRequest.of(0, 20);
+        when(ventas.buscar(2L, null, null, null, pageable))
+            .thenReturn(new PageImpl<>(List.of(otra), pageable, 1));
+        assertEquals(9L, service.listar(null, null, null, pageable).getContent().getFirst().usuarioId());
+        verify(ventas).buscar(2L, null, null, null, pageable);
+    }
+
+    @Test
+    void cajeroConsultaSuVentaPorId() {
+        autenticar();
+        when(ventas.findVisibleById(10L, 2L, 7L)).thenReturn(Optional.of(ventaGuardada()));
+        when(detalles.findByVentaIdOrderByIdAsc(10L)).thenReturn(List.of());
+        assertEquals(7L, service.obtenerPorId(10L).usuarioId());
+        verify(ventas, never()).findById(any());
+    }
+
+    @Test
+    void cajeroNoAccedeAVentaAjenaCambiandoElId() {
+        autenticar();
+        when(ventas.findVisibleById(99L, 2L, 7L)).thenReturn(Optional.empty());
+        assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerPorId(99L));
+        verifyNoInteractions(detalles);
+        verify(ventas, never()).findById(any());
+    }
+
+    @Test
+    void adminConsultaVentaDeUnCajeroDeSuSucursalPorId() {
+        autenticar("ROLE_ADMIN");
+        Venta otra = ventaGuardada();
+        Usuario cajero = new Usuario();
+        cajero.setId(9L);
+        otra.setUsuario(cajero);
+        when(ventas.findVisibleById(10L, 2L, null)).thenReturn(Optional.of(otra));
+        when(detalles.findByVentaIdOrderByIdAsc(10L)).thenReturn(List.of());
+        assertEquals(9L, service.obtenerPorId(10L).usuarioId());
+        verify(ventas, never()).findById(any());
+    }
+
+    @Test
+    void adminNoConsultaVentaDeOtraSucursalPorId() {
+        autenticar("ROLE_ADMIN");
+        when(ventas.findVisibleById(99L, 2L, null)).thenReturn(Optional.empty());
+        assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerPorId(99L));
+        verifyNoInteractions(detalles);
+        verify(ventas, never()).findById(any());
+    }
+
+    @Test
+    void consultasExigenUsuarioAutenticado() {
+        assertThrows(AccessDeniedException.class, () -> service.listar(null, null, null, PageRequest.of(0, 20)));
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(usuarios, ventas, detalles);
+    }
+
+    @Test
+    void otroRolNoPuedeConsultarVentasDesdeElServicio() {
+        autenticar("ROLE_USER");
+        assertThrows(AccessDeniedException.class, () -> service.listar(null, null, null, PageRequest.of(0, 20)));
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(ventas, detalles);
+    }
+
+    @Test
+    void noConsultaVentasConSucursalInactiva() {
+        autenticar();
+        sucursal.setActiva(false);
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(ventas, detalles);
     }
 }

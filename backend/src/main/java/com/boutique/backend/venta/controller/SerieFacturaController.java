@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,10 +30,12 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/series-factura")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class SerieFacturaController {
 
     private final SerieFacturaService serieService;
 
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
     @GetMapping
     public PagedModel<SerieFacturaResponse> listar(@RequestParam(required = false) @Positive Long sucursalId,
         @RequestParam(required = false) Boolean activa,
@@ -40,6 +43,7 @@ public class SerieFacturaController {
         return new PagedModel<>(serieService.listar(sucursalId, activa, pageable));
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
     @GetMapping("/{id}")
     public SerieFacturaResponse obtenerPorId(@PathVariable @Positive Long id) {
         return serieService.obtenerPorId(id);

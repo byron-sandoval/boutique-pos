@@ -33,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -94,14 +95,15 @@ class VentaAnulacionServiceTest {
 
     private void autenticar() {
         Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-7").build();
-        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        SecurityContextHolder.getContext().setAuthentication(
+            new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         when(usuarios.findByKeycloakId("keycloak-7")).thenReturn(Optional.of(usuario));
     }
 
     private void prepararVentaBloqueada() {
         autenticar();
         when(ventas.findSesionCajaId(10L)).thenReturn(Optional.of(5L));
-        when(cajas.obtenerParaVenta(5L, 7L, 2L)).thenReturn(caja);
+        when(cajas.obtenerParaAnulacion(5L, 2L)).thenReturn(caja);
         when(ventas.findByIdForUpdate(10L)).thenReturn(Optional.of(venta));
     }
 
@@ -226,7 +228,7 @@ class VentaAnulacionServiceTest {
     void rechazoDeCajaCerradaImpideReintegrarStock() {
         autenticar();
         when(ventas.findSesionCajaId(10L)).thenReturn(Optional.of(5L));
-        when(cajas.obtenerParaVenta(5L, 7L, 2L)).thenThrow(new ConflictoException("Caja cerrada"));
+        when(cajas.obtenerParaAnulacion(5L, 2L)).thenThrow(new ConflictoException("Caja cerrada"));
         assertThrows(ConflictoException.class, () -> service.anular(10L, motivo()));
         verify(ventas, never()).findByIdForUpdate(any());
         verify(ventas, never()).saveAndFlush(any());
@@ -282,5 +284,49 @@ class VentaAnulacionServiceTest {
         assertEquals(EstadoVenta.COMPLETADA, venta.getEstado());
         assertNull(venta.getAnuladaEn());
         verify(ventas, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void adminPuedeAnularVentaDeUnCajeroSinCambiarElVendedorNiElDuenoDeCaja() {
+        prepararVentaBloqueada();
+        Usuario cajero = new Usuario();
+        cajero.setId(9L);
+        cajero.setSucursal(usuario.getSucursal());
+        caja.setAbiertoPor(cajero);
+        venta.setUsuario(cajero);
+        when(detalles.findByVentaIdOrderByIdAsc(10L)).thenReturn(List.of(detalle(4L, 2)));
+        when(ventas.saveAndFlush(venta)).thenReturn(venta);
+
+        var r = service.anular(10L, motivo());
+
+        assertEquals(EstadoVenta.ANULADA, r.estado());
+        assertEquals(9L, r.usuarioId());
+        assertEquals(7L, r.anuladaPorId());
+        assertSame(cajero, caja.getAbiertoPor());
+        verify(cajas).obtenerParaAnulacion(5L, 2L);
+        verify(cajas, never()).obtenerParaVenta(any(), any(), any());
+        verify(cajas).anularVenta(caja, new BigDecimal("207.00"), MetodoPago.EFECTIVO);
+        verify(stock).ingresar(4L, 2L, 2);
+    }
+
+    @Test
+    void cajeroNoPuedeAnularNiSuPropiaVentaDesdeElServicio() {
+        Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-7").build();
+        SecurityContextHolder.getContext().setAuthentication(
+            new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_CAJERO"))));
+
+        assertThrows(AccessDeniedException.class, () -> service.anular(10L, motivo()));
+
+        verifyNoInteractions(usuarios, ventas, detalles, cajas, stock, devoluciones);
+    }
+
+    @Test
+    void usuarioSinRolAdminNoPuedeAnular() {
+        Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-7").build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+
+        assertThrows(AccessDeniedException.class, () -> service.anular(10L, motivo()));
+
+        verifyNoInteractions(usuarios, ventas, detalles, cajas, stock, devoluciones);
     }
 }
