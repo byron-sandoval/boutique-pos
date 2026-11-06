@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,6 +28,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
 public class ClienteController {
 
     private final ClienteService clienteService;
@@ -54,11 +56,13 @@ public class ClienteController {
         return clienteService.actualizar(id, request);
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping("/{id}/estado")
     public ClienteResponse cambiarEstado(@PathVariable @Positive Long id, @Valid @RequestBody ClienteEstadoRequest request) {
         return clienteService.cambiarEstado(id, request.activo());
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable @Positive Long id) {
         clienteService.cambiarEstado(id, false);
