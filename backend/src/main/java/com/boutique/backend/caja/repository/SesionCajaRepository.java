@@ -16,16 +16,24 @@ public interface SesionCajaRepository extends JpaRepository<SesionCaja, Long> {
 
     boolean existsByAbiertoPorIdAndEstado(Long usuarioId, EstadoCaja estado);
 
-    Optional<SesionCaja> findByAbiertoPorIdAndEstado(Long usuarioId, EstadoCaja estado);
+    Optional<SesionCaja> findByAbiertoPorIdAndSucursalIdAndEstado(Long usuarioId, Long sucursalId, EstadoCaja estado);
 
     @Query("""
         select c from SesionCaja c
-        where (:sucursalId is null or c.sucursal.id = :sucursalId)
+        where c.sucursal.id = :sucursalId
           and (:usuarioId is null or c.abiertoPor.id = :usuarioId)
           and (:estado is null or c.estado = :estado)
         """)
     Page<SesionCaja> buscar(@Param("sucursalId") Long sucursalId, @Param("usuarioId") Long usuarioId,
         @Param("estado") EstadoCaja estado, Pageable pageable);
+
+    @Query("""
+        select c from SesionCaja c
+        where c.id = :id and c.sucursal.id = :sucursalId
+          and (:usuarioId is null or c.abiertoPor.id = :usuarioId)
+        """)
+    Optional<SesionCaja> findVisibleById(@Param("id") Long id, @Param("sucursalId") Long sucursalId,
+        @Param("usuarioId") Long usuarioId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from SesionCaja c where c.id = :id")

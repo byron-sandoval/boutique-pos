@@ -47,17 +47,31 @@ public class SesionCajaService {
 
     public Page<SesionCajaResponse> listar(@Positive Long sucursalId, @Positive Long usuarioId, EstadoCaja estado,
         @NotNull Pageable pageable) {
-        return cajaRepository.buscar(sucursalId, usuarioId, estado, pageable).map(mapper::toResponse);
+        Usuario usuario = usuarioActual();
+        boolean admin = administradorConsulta(usuario);
+        Long sucursalPermitida = usuario.getSucursal().getId();
+        if (sucursalId != null && !sucursalPermitida.equals(sucursalId)) {
+            throw new AccessDeniedException("Solo puedes consultar cajas de tu sucursal.");
+        }
+        if (!admin && usuarioId != null && !usuario.getId().equals(usuarioId)) {
+            throw new AccessDeniedException("Solo puedes consultar tus propias cajas.");
+        }
+        Long usuarioPermitido = admin ? usuarioId : usuario.getId();
+        return cajaRepository.buscar(sucursalPermitida, usuarioPermitido, estado, pageable).map(mapper::toResponse);
     }
 
     public SesionCajaResponse obtenerPorId(@NotNull @Positive Long id) {
-        return mapper.toResponse(cajaRepository.findById(id)
+        Usuario usuario = usuarioActual();
+        Long usuarioPermitido = administradorConsulta(usuario) ? null : usuario.getId();
+        return mapper.toResponse(cajaRepository.findVisibleById(id, usuario.getSucursal().getId(), usuarioPermitido)
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sesión de caja con ID " + id + ".")));
     }
 
     public SesionCajaResponse obtenerActual() {
         Usuario usuario = usuarioActual();
-        return mapper.toResponse(cajaRepository.findByAbiertoPorIdAndEstado(usuario.getId(), EstadoCaja.ABIERTA)
+        administradorConsulta(usuario);
+        return mapper.toResponse(cajaRepository.findByAbiertoPorIdAndSucursalIdAndEstado(
+            usuario.getId(), usuario.getSucursal().getId(), EstadoCaja.ABIERTA)
             .orElseThrow(() -> new RecursoNoEncontradoException("No tienes una caja abierta.")));
     }
 
@@ -110,6 +124,16 @@ public class SesionCajaService {
             caja.setNotas(caja.getNotas() == null ? notaCierre : caja.getNotas() + "\n" + notaCierre);
         }
         return mapper.toResponse(cajaRepository.save(caja));
+    }
+
+    private boolean administradorConsulta(Usuario usuario) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean admin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean cajero = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_CAJERO"));
+        if ((!admin && !cajero) || !Boolean.TRUE.equals(usuario.getSucursal().getActiva())) {
+            throw new AccessDeniedException("Se requiere ADMIN o CAJERO con una sucursal activa para consultar cajas.");
+        }
+        return admin;
     }
 
     private Usuario usuarioActual() {

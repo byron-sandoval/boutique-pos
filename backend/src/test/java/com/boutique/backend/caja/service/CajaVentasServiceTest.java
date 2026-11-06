@@ -168,4 +168,29 @@ class CajaVentasServiceTest {
             () -> service.anularVenta(caja, new BigDecimal("-1.00"), MetodoPago.TARJETA));
         verifyNoInteractions(repository);
     }
+
+    @Test
+    void cajaParaAnulacionPuedePertenecerAOtroUsuarioDeLaMismaSucursal() {
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(caja));
+
+        assertSame(caja, service.obtenerParaAnulacion(1L, 2L));
+        assertEquals(3L, caja.getAbiertoPor().getId());
+    }
+
+    @Test
+    void cajaParaAnulacionDebePertenecerALaSucursalDelAdministrador() {
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(caja));
+
+        assertThrows(AccessDeniedException.class, () -> service.obtenerParaAnulacion(1L, 9L));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void cajaParaAnulacionDebeSeguirAbierta() {
+        caja.setEstado(EstadoCaja.CERRADA);
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(caja));
+
+        assertThrows(ConflictoException.class, () -> service.obtenerParaAnulacion(1L, 2L));
+        verify(repository, never()).save(any());
+    }
 }

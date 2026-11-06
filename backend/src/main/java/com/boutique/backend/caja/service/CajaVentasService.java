@@ -33,6 +33,17 @@ public class CajaVentasService {
         return caja;
     }
 
+    // Uso interno de la anulación autorizada para ADMIN; conserva el bloqueo de caja y la misma sucursal.
+    public SesionCaja obtenerParaAnulacion(Long id, Long sucursalId) {
+        SesionCaja caja = cajaRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sesión de caja indicada."));
+        if (!caja.getSucursal().getId().equals(sucursalId)) {
+            throw new AccessDeniedException("Solo puedes anular ventas de cajas de tu sucursal.");
+        }
+        validarAbierta(caja);
+        return caja;
+    }
+
     // La caja debe proceder de obtenerParaVenta dentro de la misma transacción de venta.
     public void registrarVenta(SesionCaja caja, BigDecimal importeBase, MetodoPago metodoPago) {
         validarAbierta(caja);
@@ -68,7 +79,7 @@ public class CajaVentasService {
         cajaRepository.save(caja);
     }
 
-    // La caja debe estar bloqueada por obtenerParaVenta en esta misma transacción.
+    // La caja debe estar bloqueada por obtenerParaAnulacion en esta misma transacción.
     public void anularVenta(SesionCaja caja, BigDecimal importeBase, MetodoPago metodoPago) {
         validarAbierta(caja);
         BigDecimal importe = importeBase.setScale(2, RoundingMode.UNNECESSARY);

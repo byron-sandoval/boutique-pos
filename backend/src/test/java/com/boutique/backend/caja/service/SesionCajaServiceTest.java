@@ -24,10 +24,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -62,8 +66,12 @@ class SesionCajaServiceTest {
     }
 
     private void autenticar() {
+        autenticar("ROLE_CAJERO");
+    }
+
+    private void autenticar(String rol) {
         Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-7").build();
-        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority(rol))));
         when(usuarios.findByKeycloakId("keycloak-7")).thenReturn(Optional.of(usuario));
     }
 
@@ -177,14 +185,14 @@ class SesionCajaServiceTest {
     @Test
     void consultaLaCajaActualDelUsuario() {
         autenticar();
-        when(cajas.findByAbiertoPorIdAndEstado(7L, EstadoCaja.ABIERTA)).thenReturn(Optional.of(caja()));
+        when(cajas.findByAbiertoPorIdAndSucursalIdAndEstado(7L, 2L, EstadoCaja.ABIERTA)).thenReturn(Optional.of(caja()));
         assertEquals(10L, service.obtenerActual().id());
     }
 
     @Test
     void indicaQueNoHayCajaActual() {
         autenticar();
-        when(cajas.findByAbiertoPorIdAndEstado(7L, EstadoCaja.ABIERTA)).thenReturn(Optional.empty());
+        when(cajas.findByAbiertoPorIdAndSucursalIdAndEstado(7L, 2L, EstadoCaja.ABIERTA)).thenReturn(Optional.empty());
         assertThrows(RecursoNoEncontradoException.class, service::obtenerActual);
     }
 
@@ -298,5 +306,127 @@ class SesionCajaServiceTest {
         assertThrows(RecursoNoEncontradoException.class,
             () -> service.cerrar(99L, new SesionCajaCierreRequest(BigDecimal.ZERO, null)));
         verify(cajas, never()).save(any());
+    }
+
+    @Test
+    void cajeroListaSoloSusCajasAunqueNoEnvieFiltros() {
+        autenticar();
+        var pageable = PageRequest.of(0, 20);
+        when(cajas.buscar(2L, 7L, null, pageable)).thenReturn(new PageImpl<>(List.of(caja()), pageable, 1));
+
+        var r = service.listar(null, null, null, pageable);
+
+        assertEquals(1, r.getTotalElements());
+        assertEquals(7L, r.getContent().getFirst().abiertoPorId());
+        verify(cajas).buscar(2L, 7L, null, pageable);
+    }
+
+    @Test
+    void cajeroNoPuedePedirCajasDeOtroUsuarioMedianteElFiltro() {
+        autenticar();
+        assertThrows(AccessDeniedException.class, () -> service.listar(null, 9L, null, PageRequest.of(0, 20)));
+        verifyNoInteractions(cajas);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_ADMIN", "ROLE_CAJERO"})
+    void noPermiteConsultarOtraSucursalMedianteElFiltro(String rol) {
+        autenticar(rol);
+        assertThrows(AccessDeniedException.class, () -> service.listar(9L, null, null, PageRequest.of(0, 20)));
+        verifyNoInteractions(cajas);
+    }
+
+    @Test
+    void adminListaTodasLasCajasDeSuSucursal() {
+        autenticar("ROLE_ADMIN");
+        SesionCaja otra = caja();
+        otra.setId(11L);
+        Usuario cajero = new Usuario();
+        cajero.setId(9L);
+        otra.setAbiertoPor(cajero);
+        var pageable = PageRequest.of(0, 20);
+        when(cajas.buscar(2L, null, EstadoCaja.ABIERTA, pageable))
+            .thenReturn(new PageImpl<>(List.of(caja(), otra), pageable, 2));
+
+        var r = service.listar(null, null, EstadoCaja.ABIERTA, pageable);
+
+        assertEquals(2, r.getTotalElements());
+        assertEquals(9L, r.getContent().get(1).abiertoPorId());
+        verify(cajas).buscar(2L, null, EstadoCaja.ABIERTA, pageable);
+    }
+
+    @Test
+    void adminPuedeFiltrarLasCajasDeUnCajeroDentroDeSuSucursal() {
+        autenticar("ROLE_ADMIN");
+        var pageable = PageRequest.of(0, 20);
+        when(cajas.buscar(2L, 9L, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        assertTrue(service.listar(null, 9L, null, pageable).isEmpty());
+        verify(cajas).buscar(2L, 9L, null, pageable);
+    }
+
+    @Test
+    void cajeroPuedeConsultarSuCajaPorIdConFiltroDeUsuarioYSucursal() {
+        autenticar();
+        when(cajas.findVisibleById(10L, 2L, 7L)).thenReturn(Optional.of(caja()));
+        assertEquals(10L, service.obtenerPorId(10L).id());
+        verify(cajas, never()).findById(any());
+    }
+
+    @Test
+    void cajeroNoAccedeACajaAjenaCambiandoElId() {
+        autenticar();
+        when(cajas.findVisibleById(99L, 2L, 7L)).thenReturn(Optional.empty());
+        assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerPorId(99L));
+        verify(cajas, never()).findById(any());
+    }
+
+    @Test
+    void adminConsultaCajaDeOtroCajeroEnSuSucursal() {
+        autenticar("ROLE_ADMIN");
+        SesionCaja otra = caja();
+        Usuario cajero = new Usuario();
+        cajero.setId(9L);
+        otra.setAbiertoPor(cajero);
+        when(cajas.findVisibleById(10L, 2L, null)).thenReturn(Optional.of(otra));
+        assertEquals(9L, service.obtenerPorId(10L).abiertoPorId());
+        verify(cajas, never()).findById(any());
+    }
+
+    @Test
+    void adminNoConsultaCajaDeOtraSucursalPorId() {
+        autenticar("ROLE_ADMIN");
+        when(cajas.findVisibleById(99L, 2L, null)).thenReturn(Optional.empty());
+        assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerPorId(99L));
+        verify(cajas, never()).findById(any());
+    }
+
+    @Test
+    void cajaActualDelAdministradorSigueSiendoLaPropia() {
+        autenticar("ROLE_ADMIN");
+        when(cajas.findByAbiertoPorIdAndSucursalIdAndEstado(7L, 2L, EstadoCaja.ABIERTA)).thenReturn(Optional.of(caja()));
+        assertEquals(7L, service.obtenerActual().abiertoPorId());
+    }
+
+    @Test
+    void consultasExigenUsuarioAutenticado() {
+        assertThrows(AccessDeniedException.class, () -> service.listar(null, null, null, PageRequest.of(0, 20)));
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(cajas, usuarios);
+    }
+
+    @Test
+    void otroRolNoPuedeConsultarCajasDesdeElServicio() {
+        autenticar("ROLE_USER");
+        assertThrows(AccessDeniedException.class, () -> service.listar(null, null, null, PageRequest.of(0, 20)));
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(cajas);
+    }
+
+    @Test
+    void noConsultaCajasConSucursalInactiva() {
+        autenticar();
+        sucursal.setActiva(false);
+        assertThrows(AccessDeniedException.class, () -> service.obtenerPorId(10L));
+        verifyNoInteractions(cajas);
     }
 }
