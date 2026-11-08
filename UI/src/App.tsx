@@ -39,7 +39,7 @@ function App() {
   }
 
   const page = findPanelPage(path, session.roles)
-  return <PanelLayout name={session.name} roles={session.roles} path={path} onLogout={signOut} loggingOut={loggingOut}>
+  return <PanelLayout name={session.username} roles={session.roles} path={path} onLogout={signOut} loggingOut={loggingOut}>
     {actionError && <p role="alert" className="notice error">{actionError}</p>}
     {!page ? <div className="module-placeholder"><h1>Esta página no está disponible</h1><p>Comprueba la dirección y los permisos de tu cuenta.</p><PanelLink className="text-link" href="/inicio">Volver al inicio</PanelLink></div>
       : path === '/inicio' ? <DashboardPage name={session.name} />

@@ -1,10 +1,11 @@
-.sidebar-inner .theme-toggle { display: flex; width: 100%; height: 40px; align-items: center; justify-content: flex-start; gap: 10px; padding: 0 12px; color: #797480; font-size: 12px; font-weight: 450; }
+.sidebar-inner .theme-toggle { display: flex; width: 100%; height: 40px; align-items: center; justify-content: flex-start; gap: 10px; padding: 0 12px; color: #45414b; font-size: 12px; font-weight: 500; }
 .theme-label { flex: 1; text-align: left; }
 .theme-track { display: flex; align-items: center; width: 30px; height: 18px; padding: 2px; border-radius: 20px; background: #dcd5df; flex-shrink: 0; transition: background-color 150ms ease; }
 .theme-track > span { display: block; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #25182c18; transition: transform 150ms ease; }
 .theme-toggle[aria-checked="true"] .theme-track { background: #a67d98; }
 .theme-toggle[aria-checked="true"] .theme-track > span { transform: translateX(12px); }
 /* Superficies y colores del panel; los componentes shadcn usan también .dark. */
+:root.dark { --panel-text: #f4f4f5; --panel-text-secondary: #d4cfd3; --panel-text-muted: #bcb7ba; }
 :root.dark { --background: #101010; --foreground: #f4f4f5; --card: #1b1b1b; --card-foreground: #f4f4f5; --popover: #202020; --popover-foreground: #f4f4f5; --muted: #262626; --muted-foreground: #b1b1b8; --secondary: #242424; --secondary-foreground: #f0edef; --input: #383838; --primary: #bb93ad; --primary-foreground: #20191f; --accent: #332936; --accent-foreground: #efdeea; --ring: #b48ba6; --border: #343434; }
 .dark body { background: #101010; color: #f4f4f5; }
 .dark .desktop-sidebar, .dark .topbar, .dark .mobile-sidebar-content { background: #151515; border-color: #2c2c2c; }
@@ -14,18 +15,19 @@
 .dark .brand .brand-toggle:hover { background: #67445b; }
 .dark .brand-pos, .dark .nav-section-label, .dark .sidebar-footnote { color: #99999f; }
 .dark .nav-link, .dark .nav-children a, .dark .sidebar-inner .theme-toggle { color: #bcbcc2; }
-.dark .nav-link:hover, .dark .topbar-user .user-logout:hover { background: #242122; color: #e6c7dc; }
+.dark .nav-link:hover { background: #242122; color: #e6c7dc; }
 .dark .nav-link.is-active, .dark .sidebar-collapsed .desktop-sidebar .group-active { background: #352836; color: #e0b6d2; }
 .dark .nav-link.group-active, .dark .nav-children a.is-active, .dark .nav-children a:hover { color: #dab0cc; }
 .dark .nav-children a:hover { background: #292329; }
 .dark .nav-children a.is-active { background: #3b2937; color: #efcbe3; }
 .dark .nav-children { border-color: #333333; }
-.dark .topbar-user .user-logout { color: #b8b8be; }
+.dark .topbar-user .user-logout { color: var(--panel-text-secondary); }
+.dark .topbar-user .user-logout:hover { background: #242122; color: var(--panel-text); }
 .dark .user-avatar { background: #3a2d3b; color: #d9b6ce; }
 .dark .user-copy > span, .dark .page-heading p:not(.eyebrow), .dark .welcome { color: #bcb7ba; }
 .dark .eyebrow, .dark .heading-dot { color: #bf98b2; }
 .dark .surface-card, .dark .panel, .dark .welcome-card { background: #1b1b1b; border-color: #323232; box-shadow: none; }
-.dark .metric-primary { background: #765068; border-color: #765068; color: #fff; }
+.dark .metric-primary { background: #825d74; border-color: #825d74; color: #fff; }
 .dark .metric-label, .dark .metric-value small, .dark .metric-change > span, .dark .subtle-label, .dark .card-heading p { color: #b3a5bb; }
 .dark .metric-primary .metric-label, .dark .metric-primary .metric-change { color: #f0e1ec; }
 .dark .metric-primary .metric-change > span { color: #dfc7d7; }
