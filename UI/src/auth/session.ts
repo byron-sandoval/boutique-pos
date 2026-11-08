@@ -6,6 +6,7 @@ export type Role = 'ADMIN' | 'CAJERO'
 export type Session = {
   status: 'loading' | 'anonymous' | 'authenticated' | 'expired' | 'error'
   name: string
+  username: string
   roles: Role[]
 }
 
@@ -14,7 +15,7 @@ const keycloak = new Keycloak({
   realm: config.keycloakRealm,
   clientId: config.keycloakClientId,
 })
-let session: Session = { status: 'loading', name: '', roles: [] }
+let session: Session = { status: 'loading', name: '', username: '', roles: [] }
 const listeners = new Set<() => void>()
 let initialization: Promise<void> | undefined
 
@@ -23,6 +24,7 @@ function publish(status: Session['status']) {
   session = {
     status,
     name: status === 'authenticated' ? claims?.name || claims?.preferred_username || 'Usuario' : '',
+    username: status === 'authenticated' ? claims?.preferred_username || 'Usuario' : '',
     roles: status === 'authenticated'
       ? (['ADMIN', 'CAJERO'] as const).filter(role => keycloak.hasRealmRole(role))
       : [],

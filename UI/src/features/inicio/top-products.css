@@ -5,8 +5,8 @@
 .top-product-rank { position: absolute; top: -6px; left: -5px; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; font-size: 12px; font-weight: 650; color: #312a24; border: 2px solid #fff; }
 .rank-1 { background: #f0d57d; }.rank-2 { background: #dce1e5; }.rank-3 { background: #cfa586; }
 .top-product-details { padding: 10px 8px 8px; flex: 1; }
-.top-product-details h3 { margin: 0; color: #443941; font-size: 11px; font-weight: 600; line-height: 1.4; min-height: 2.8em; overflow-wrap: anywhere; }
-.top-product-details p { margin-top: 6px; color: #8c7f89; font-size: 10px; }
+.top-product-details h3 { margin: 0; color: var(--panel-text); font-size: 11px; font-weight: 600; line-height: 1.4; min-height: 2.8em; overflow-wrap: anywhere; }
+.top-product-details p { margin-top: 6px; color: var(--panel-text-secondary); font-size: 10px; }
 .top-product-amount { margin: 0 6px; padding: 5px 2px; border-radius: 4px; background: #eee2eb; color: #6d485f; font-size: 10px; font-weight: 600; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dark .top-product-card { background: #29242d; border-color: #3b3340; }
 .dark .top-product-rank { border-color: #211e27; }

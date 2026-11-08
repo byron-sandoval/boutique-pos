@@ -1,8 +1,8 @@
 .stock-notifications { display: flex; align-items: center; margin-right: 5px; }
-.stock-notifications > button { color: #8b7888; }
-.stock-notifications-panel { position: fixed; inset: 72px 30px auto auto; margin: 0; width: min(320px, calc(100vw - 32px)); padding: 0; border: 1px solid #e7e4e9; border-radius: 9px; color: #443941; background: #fff; box-shadow: 0 8px 28px #231c241a; }
+.stock-notifications > button { color: var(--panel-text-secondary); }
+.stock-notifications-panel { position: fixed; inset: 72px 30px auto auto; margin: 0; width: min(320px, calc(100vw - 32px)); padding: 0; border: 1px solid #e7e4e9; border-radius: 9px; color: var(--panel-text); background: #fff; box-shadow: 0 8px 28px #231c241a; }
 .stock-notifications-panel h2 { margin: 0; padding: 16px; border-bottom: 1px solid #eee8ed; font-size: 13px; font-weight: 600; }
-.stock-notifications-empty { display: flex; align-items: center; flex-direction: column; gap: 10px; padding: 28px 16px; color: #948692; }
+.stock-notifications-empty { display: flex; align-items: center; flex-direction: column; gap: 10px; padding: 28px 16px; color: var(--panel-text-secondary); }
 .stock-notifications-empty p { margin: 0; font-size: 12px; }
 .stock-notifications-panel > a { display: block; padding: 12px 16px; border-top: 1px solid #eee8ed; color: #765068; text-align: center; font-size: 12px; text-decoration: none; }
 .stock-notifications-panel > a:hover { background: #f4edf2; }

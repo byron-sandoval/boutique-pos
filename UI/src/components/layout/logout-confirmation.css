@@ -1,7 +1,9 @@
-.logout-confirmation { width: min(400px, calc(100vw - 32px)); margin: auto; padding: 24px; border: 1px solid #ece6eb; border-radius: 10px; background: #fff; color: #292830; box-shadow: 0 16px 48px #00000024; }
+.logout-confirmation { width: min(400px, calc(100vw - 32px)); margin: auto; padding: 24px; border: 1px solid #ece6eb; border-radius: 10px; background: #fff; color: var(--panel-text); box-shadow: 0 16px 48px #00000024; }
 .logout-confirmation::backdrop { background: #00000066; }
 .logout-confirmation h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
-.logout-confirmation p { margin: 10px 0 24px; font-size: 13px; line-height: 1.6; color: #797480; }
+.logout-confirmation p { margin: 10px 0 24px; font-size: 13px; line-height: 1.6; color: var(--panel-text-secondary); }
 .logout-confirmation-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.logout-confirmation .logout-confirm-button { background: #b91c1c; color: #fff; }
+.logout-confirmation .logout-confirm-button:hover { background: #991b1b; }
 .dark .logout-confirmation { background: #1b1b1b; color: #f4f4f5; border-color: #343434; }
 .dark .logout-confirmation p { color: #bcb7ba; }

@@ -46,7 +46,7 @@ export function PanelLayout({ name, roles, path, onLogout, loggingOut, children 
       <p id={logoutDescriptionId}>Tendrás que iniciar sesión de nuevo para acceder al sistema.</p>
       <div className="logout-confirmation-actions">
         <Button variant="outline" autoFocus onClick={() => logoutDialog.current?.close()}>Cancelar</Button>
-        <Button disabled={loggingOut} onClick={() => {
+        <Button className="logout-confirm-button" disabled={loggingOut} onClick={() => {
           if (loggingOut) return
           logoutDialog.current?.close()
           onLogout()
