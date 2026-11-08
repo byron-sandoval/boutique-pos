@@ -1,75 +1,48 @@
-# React + TypeScript + Vite
+# Boutique POS — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React y TypeScript con autenticación de Keycloak y acceso a la API de Spring Boot.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Con PostgreSQL, Keycloak y el backend ya iniciados por ti:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+cd UI
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Abre http://localhost:5173. Si no tienes sesión, la aplicación te envía directamente al login de Keycloak; después de autenticarte, muestra tu nombre, tus roles y las categorías obtenidas de la API. ADMIN y CAJERO pueden consultar esta pantalla. Todavía no incluye los formularios de los demás módulos.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Vite usa el puerto 5173 y falla si está ocupado, para conservar las rutas autorizadas en Keycloak y CORS.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Conexión
 
+Los valores predeterminados están en `src/config.ts`:
+
+| Configuración pública | Valor predeterminado |
+| --- | --- |
+| VITE_API_URL | http://localhost:8080/api |
+| VITE_KEYCLOAK_URL | http://localhost:9081 |
+| VITE_KEYCLOAK_REALM | boutique |
+| VITE_KEYCLOAK_CLIENT_ID | boutique-ui |
+
+No necesitas crear un archivo de entorno para trabajar con estos valores. Puedes sobrescribirlos con variables VITE_* y reiniciar Vite. Estas variables son públicas: nunca contienen contraseñas ni secretos.
+
+El cliente `boutique-ui` debe tener Standard flow, PKCE S256, el redirect `http://localhost:5173/*`, el origen `http://localhost:5173`, el redirect posterior al logout y el mapper de audiencia `boutique-api`. La configuración está guardada en `docker/keycloak/boutique-realm.json`; modificar ese archivo no sobrescribe un realm ya existente.
+
+Los roles ADMIN y CAJERO se leen del realm. El backend sigue verificando los permisos y el estado del usuario: para CAJERO se necesita también su registro local vinculado mediante keycloak_id y una sucursal activa. Crear un usuario directamente en Keycloak no crea ese registro en PostgreSQL.
+
+El adaptador oficial keycloak-js usa Authorization Code con PKCE S256. Los tokens permanecen en memoria, se renuevan antes de las peticiones y al vencer, y se envían como Bearer. No se guardan en localStorage ni sessionStorage. Cerrar sesión borra la sesión local y redirige al logout de Keycloak. Una respuesta 401 solicita iniciar sesión de nuevo; 403 muestra falta de permiso sin cerrar la sesión. Las escrituras no se reintentan automáticamente.
+
+## Validación
+
+```powershell
+npm run build
+npm run lint
+npm test
 ```
+
+Las pruebas del cliente HTTP usan respuestas simuladas y no se conectan a PostgreSQL ni Keycloak. `npm test` requiere Node 24 o posterior.
+
+Para comprobar la integración real: entrar como ADMIN, consultar categorías, cerrar sesión y repetir con CAJERO. Verificar también el cierre de sesión y la renovación del token. Esta comprobación requiere tus servicios en ejecución y tus usuarios; la compilación y las pruebas aisladas no la sustituyen.
