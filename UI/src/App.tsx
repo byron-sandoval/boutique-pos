@@ -1,16 +1,30 @@
+import { PanelLink } from '@/routes/PanelLink'
 import { useState } from 'react'
 import { logout } from './auth/session'
 import { useSession } from './auth/use-session'
 import { Categorias } from './features/categorias/Categorias'
+import { Button } from './components/ui/button'
+import { PanelLayout } from './components/layout/PanelLayout'
+import { ModulePlaceholder } from './components/layout/ModulePlaceholder'
+import { DashboardPage } from './features/inicio/DashboardPage'
+import { usePanelRoute } from './routes/use-panel-route'
+import { findPanelPage } from './routes/navigation'
 import './App.css'
+import './theme.css'
 
 function App() {
   const session = useSession()
   const [actionError, setActionError] = useState('')
+  const [loggingOut, setLoggingOut] = useState(false)
+  const path = usePanelRoute()
 
-  function run(action: () => Promise<void>) {
+  function signOut() {
     setActionError('')
-    void action().catch(() => setActionError('No se pudo completar la acción. Intenta nuevamente.'))
+    setLoggingOut(true)
+    void logout().catch(() => {
+      setLoggingOut(false)
+      setActionError('No se pudo cerrar la sesión. Intenta nuevamente.')
+    })
   }
 
   if (session.status !== 'authenticated') {
@@ -18,23 +32,20 @@ function App() {
       {session.status === 'error'
         ? <section className="welcome-card">
             <p role="alert" className="notice error">No se pudo completar el acceso. Comprueba que Keycloak esté disponible.</p>
-            <button onClick={() => window.location.reload()}>Reintentar</button>
+            <Button onClick={() => window.location.reload()}>Reintentar</Button>
           </section>
         : <p role="status">Redirigiendo al acceso…</p>}
     </main>
   }
 
-  const allowed = session.roles.length > 0
-  return <div className="app-shell">
-    <header className="app-header"><div><p className="eyebrow">Boutique POS</p><h1>Bienvenido, {session.name}</h1></div>
-      <div className="session-actions"><span className="badge">{session.roles.join(' · ') || 'Sin rol asignado'}</span>
-        <button className="secondary" onClick={() => run(logout)}>Cerrar sesión</button></div>
-    </header>
-    <main className="app-content">
-      {actionError && <p role="alert" className="notice error">{actionError}</p>}
-      {allowed ? <Categorias /> : <p className="notice error" role="alert">Tu cuenta necesita el rol ADMIN o CAJERO para acceder al sistema.</p>}
-    </main>
-  </div>
+  const page = findPanelPage(path, session.roles)
+  return <PanelLayout name={session.name} roles={session.roles} path={path} onLogout={signOut} loggingOut={loggingOut}>
+    {actionError && <p role="alert" className="notice error">{actionError}</p>}
+    {!page ? <div className="module-placeholder"><h1>Esta página no está disponible</h1><p>Comprueba la dirección y los permisos de tu cuenta.</p><PanelLink className="text-link" href="/inicio">Volver al inicio</PanelLink></div>
+      : path === '/inicio' ? <DashboardPage name={session.name} />
+      : path === '/productos/categorias' ? <><div className="page-heading"><div><p className="eyebrow">PRODUCTOS</p><h1>Categorías</h1><p>Organiza las colecciones de tu boutique.</p></div><span className="live-label"><span /> Datos de tu boutique</span></div><Categorias /></>
+      : <ModulePlaceholder title={page.label} />}
+  </PanelLayout>
 }
 
 export default App

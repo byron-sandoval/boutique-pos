@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
+import { Button } from '@/components/ui/button'
 
 type Categoria = { id: number; nombre: string; descripcion: string | null; activo: boolean }
 type Page<T> = { content: T[]; page: { number: number; totalPages: number; totalElements: number } }
@@ -30,7 +31,7 @@ export function Categorias() {
     <section className="panel" aria-labelledby="categorias-title">
       <div className="section-heading">
         <div><p className="eyebrow">Catálogo</p><h2 id="categorias-title">Categorías</h2></div>
-        <button className="secondary" onClick={() => load()} disabled={result.status === 'loading'}>Actualizar</button>
+        <Button variant="outline" onClick={() => load()} disabled={result.status === 'loading'}>Actualizar</Button>
       </div>
       {result.status === 'loading' && <p role="status">Cargando categorías…</p>}
       {result.status === 'error' && <p className="notice error" role="alert">{result.message}</p>}
@@ -45,8 +46,8 @@ export function Categorias() {
           </table></div>)}
       {result.status === 'ready' && <div className="pagination">
         <span>{result.data.page.totalElements} categorías · Página {page + 1} de {Math.max(1, result.data.page.totalPages)}</span>
-        <div><button className="secondary" disabled={page === 0} onClick={() => load(page - 1)}>Anterior</button>
-          <button className="secondary" disabled={page + 1 >= result.data.page.totalPages} onClick={() => load(page + 1)}>Siguiente</button></div>
+        <div><Button variant="outline" disabled={page === 0} onClick={() => load(page - 1)}>Anterior</Button>
+          <Button variant="outline" disabled={page + 1 >= result.data.page.totalPages} onClick={() => load(page + 1)}>Siguiente</Button></div>
       </div>}
     </section>
   )
