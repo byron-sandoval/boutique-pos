@@ -1,10 +1,12 @@
 import { PanelLink } from '@/routes/PanelLink'
 import { useState } from 'react'
-import { ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, CreditCard, Footprints, Package, Shirt, ShoppingBag, ShoppingCart, Wallet } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, UsersRound, ReceiptText, ShoppingCart, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { SalesChart } from './SalesChart'
-import { featuredProducts, formatMoney, periods, recentSales } from './demo-data'
+import { TopProducts } from './TopProducts'
+import { DateRangeSelector } from './DateRangeSelector'
+import { dashboardSummary, formatMoney, recentSales } from './demo-data'
 
 type Props = { name: string }
 
@@ -13,35 +15,25 @@ function Sparkline({ reverse = false }: { reverse?: boolean }) {
 }
 
 export function DashboardPage({ name }: Props) {
-  const [period, setPeriod] = useState<keyof typeof periods>('week')
   const [filter, setFilter] = useState('Todas')
-  const data = periods[period]
-  const previousSales = data.previous.reduce((sum, value) => sum + value, 0)
-  const percentage = (current: number, previous: number) => `${current >= previous ? '+' : ''}${((current / previous - 1) * 100).toFixed(1)}%`
-  const salesChange = percentage(data.sales, previousSales)
-  const countChange = percentage(data.count, data.previousCount)
-  const ticketChange = percentage(data.sales / data.count, previousSales / data.previousCount)
   const sales = recentSales.filter(sale => filter === 'Todas' || sale.status === filter)
   const firstName = name.split(' ')[0] || 'de nuevo'
 
   return <>
-    <div className="page-heading"><div><p className="eyebrow">VISTA GENERAL</p><h1>Hola, {firstName}<span className="heading-dot">.</span></h1><p>Un vistazo a lo que mueve tu boutique.</p></div>
-      <div className="heading-actions"><div className="period-select"><CalendarDays size={15} aria-hidden="true" /><select aria-label="Período del resumen" value={period} onChange={event => setPeriod(event.target.value as keyof typeof periods)}><option value="week">Últimos 7 días</option><option value="month">Últimos 30 días</option></select><ChevronDown size={13} aria-hidden="true" /></div></div>
+    <div className="page-heading"><div><h1 className="dashboard-greeting">Bienvenido, {firstName} <span role="img" aria-label="Saludo">👋</span></h1><p>Un vistazo a lo que mueve tu boutique.</p></div>
+      <DateRangeSelector />
     </div>
 
     <div className="metrics-grid" aria-label="Indicadores ilustrativos">
-      <Card className="metric-card metric-primary"><div className="metric-label"><span>Ventas del período</span><Wallet size={18} aria-hidden="true" /></div><strong className="metric-value">{formatMoney(data.sales)}</strong><div className="metric-bottom"><span className="metric-change"><ArrowUpRight size={14} />{salesChange}<span> vs. período anterior</span></span><Sparkline /></div></Card>
-      <Card className="metric-card"><div className="metric-label"><span>Ventas realizadas</span><span className="metric-icon rose"><ShoppingCart size={17} /></span></div><strong className="metric-value">{data.count}<small>ventas</small></strong><div className="metric-bottom"><span className="metric-change positive"><ArrowUpRight size={14} />{countChange}<span> vs. período anterior</span></span><Sparkline /></div></Card>
-      <Card className="metric-card"><div className="metric-label"><span>Ticket promedio</span><span className="metric-icon sage"><CreditCard size={17} /></span></div><strong className="metric-value">{formatMoney(data.sales / data.count)}</strong><div className="metric-bottom"><span className="metric-change positive"><ArrowUpRight size={14} />{ticketChange}<span> vs. período anterior</span></span><Sparkline /></div></Card>
-      <Card className="metric-card"><div className="metric-label"><span>Stock bajo</span><span className="metric-icon sand"><Package size={17} /></span></div><strong className="metric-value">7<small>productos</small></strong><div className="metric-bottom"><PanelLink className="metric-stock-link" href="/inventario">Revisar existencias <ArrowRight size={14} /></PanelLink><Sparkline reverse /></div></Card>
+      <Card className="metric-card metric-primary"><div className="metric-label"><span>Ventas del mes</span><Wallet size={18} aria-hidden="true" /></div><strong className="metric-value">{formatMoney(dashboardSummary.monthSales)}</strong><div className="metric-bottom"><Sparkline /></div></Card>
+      <Card className="metric-card"><div className="metric-label"><span>Ventas del día</span><span className="metric-icon rose"><ShoppingCart size={17} /></span></div><strong className="metric-value">{formatMoney(dashboardSummary.daySales)}</strong><div className="metric-bottom"><Sparkline /></div></Card>
+      <Card className="metric-card"><div className="metric-label"><span>Facturas del día</span><span className="metric-icon sage"><ReceiptText size={17} /></span></div><strong className="metric-value">{dashboardSummary.dayInvoiceCount}<small>facturas</small></strong><div className="metric-bottom"><Sparkline /></div></Card>
+      <Card className="metric-card"><div className="metric-label"><span>Clientes activos</span><span className="metric-icon sand"><UsersRound size={17} aria-hidden="true" /></span></div><strong className="metric-value" aria-label="Total de clientes pendiente de consultar">—<small>clientes</small></strong><div className="metric-bottom"><PanelLink className="metric-stock-link" href="/clientes">Ver clientes <ArrowRight size={14} /></PanelLink></div></Card>
     </div>
 
     <div className="dashboard-main-grid">
-      <Card className="revenue-card"><div className="card-heading"><div><h2>Comportamiento de ventas</h2><p>El ritmo de tu negocio, día a día.</p></div><span className="subtle-label">{data.label}</span></div><div className="revenue-summary"><strong>{formatMoney(data.sales)}</strong><span className="trend-pill"><ArrowUpRight size={13} /> {salesChange}</span></div><SalesChart key={period} period={period} /></Card>
-      <Card className="bestsellers-card"><div className="card-heading"><div><h2>Los favoritos</h2><p>Productos más vendidos</p></div><span className="tiny-icon"><ShoppingBag size={18} /></span></div><div className="featured-products">{featuredProducts.map((product, index) => {
-        const Icon = product.type === 'shirt' ? Shirt : product.type === 'shoe' ? Footprints : ShoppingBag
-        return <div className="featured-product" key={product.name}><span className={`product-thumbnail ${product.color}`}><Icon size={25} strokeWidth={1.25} /></span><div className="product-info"><div><strong>{product.name}</strong><span className="product-rank">0{index + 1}</span></div><p>{product.detail}</p><div className="product-progress" aria-hidden="true"><span style={{ width: `${product.percent}%` }} /></div></div></div>
-      })}</div><PanelLink href="/productos" className="card-footer-link">Explorar productos <ArrowRight size={15} /></PanelLink></Card>
+      <Card className="revenue-card"><SalesChart /></Card>
+      <TopProducts />
     </div>
 
     <div className="dashboard-bottom-grid">

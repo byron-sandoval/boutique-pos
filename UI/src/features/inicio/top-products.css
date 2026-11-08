@@ -1,0 +1,18 @@
+.top-products-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; list-style: none; padding: 20px 16px 18px; margin: 0; flex: 1; align-items: start; }
+.top-products-grid > li { min-width: 0; height: 100%; }
+.top-product-card { display: flex; flex-direction: column; height: 100%; min-width: 0; padding-bottom: 8px; border: 1px solid #ece6eb; border-radius: 8px; background: #faf7f9; }
+.top-product-media { position: relative; aspect-ratio: 1 / 1.05; }
+.top-product-rank { position: absolute; top: -6px; left: -5px; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; font-size: 12px; font-weight: 650; color: #312a24; border: 2px solid #fff; }
+.rank-1 { background: #f0d57d; }.rank-2 { background: #dce1e5; }.rank-3 { background: #cfa586; }
+.top-product-details { padding: 10px 8px 8px; flex: 1; }
+.top-product-details h3 { margin: 0; color: #443941; font-size: 11px; font-weight: 600; line-height: 1.4; min-height: 2.8em; overflow-wrap: anywhere; }
+.top-product-details p { margin-top: 6px; color: #8c7f89; font-size: 10px; }
+.top-product-amount { margin: 0 6px; padding: 5px 2px; border-radius: 4px; background: #eee2eb; color: #6d485f; font-size: 10px; font-weight: 600; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dark .top-product-card { background: #29242d; border-color: #3b3340; }
+.dark .top-product-rank { border-color: #211e27; }
+.dark .top-product-details h3 { color: #f1eaf2; }
+.dark .top-product-details p { color: #b5a7bb; }
+.dark .top-product-amount { background: #614256; color: #fff0f9; }
+@media (min-width: 801px) and (max-width: 1240px) { .top-products-grid { padding-inline: 12px; gap: 8px; }.top-product-details { padding-inline: 6px; }.top-product-amount { margin-inline: 4px; font-size: 9px; } }
+@media (min-width: 541px) and (max-width: 1080px) { .top-products-grid { max-width: 540px; width: 100%; margin-inline: auto; gap: 16px; padding-inline: 18px; }.top-product-details h3 { font-size: 12px; }.top-product-amount { font-size: 11px; } }
+@media (max-width: 360px) { .top-products-grid { padding-inline: 12px; gap: 7px; }.top-product-details { padding-inline: 5px; }.top-product-details h3 { font-size: 10px; }.top-product-amount { font-size: 9px; margin-inline: 3px; } }

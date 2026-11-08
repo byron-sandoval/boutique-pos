@@ -1,5 +1,10 @@
 // Datos ilustrativos del diseño. No representan operaciones de PostgreSQL.
 export const periods = {
+  day: {
+    label: 'Día',
+    labels: ['09:00', '11:00', '13:00', '15:00', '17:00'],
+    values: [890, 1850, 1420, 0, 0],
+  },
   week: {
     label: 'Últimos 7 días',
     sales: 24850,
@@ -27,10 +32,18 @@ export const recentSales = [
   { invoice: 'B-000125', name: 'Ana Martínez', initials: 'AM', date: 'Hoy, 10:24', items: 1, method: 'Efectivo', total: 650, status: 'Anulada' },
 ]
 
+const completedDemoSales = recentSales.filter(sale => sale.status === 'Completada')
+
+export const dashboardSummary = {
+  monthSales: periods.month.sales,
+  daySales: completedDemoSales.reduce((total, sale) => total + sale.total, 0),
+  dayInvoiceCount: completedDemoSales.length,
+}
+
 export const featuredProducts = [
-  { name: 'Blusa de lino', detail: 'Ropa · 24 unidades vendidas', price: 650, type: 'shirt', color: 'rose', percent: 82 },
-  { name: 'Sandalias clásicas', detail: 'Calzado · 18 unidades vendidas', price: 890, type: 'shoe', color: 'sand', percent: 64 },
-  { name: 'Bolso de mano', detail: 'Accesorios · 12 unidades vendidas', price: 1200, type: 'bag', color: 'sage', percent: 46 },
+  { name: 'Blusa de lino', unitsSold: 24, salesAmount: 7200 },
+  { name: 'Sandalias clásicas', unitsSold: 18, salesAmount: 5400 },
+  { name: 'Bolso de mano', unitsSold: 12, salesAmount: 4800 },
 ] as const
 
 export function formatMoney(value: number) {
