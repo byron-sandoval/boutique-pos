@@ -1,5 +1,6 @@
 import Keycloak from 'keycloak-js'
 import { config } from '../config'
+import { loginRedirectUri } from '../routes/paths'
 
 export type Role = 'ADMIN' | 'CAJERO'
 export type Session = {
@@ -41,6 +42,7 @@ export function getSession() {
 export function expireSession() {
   if (session.status === 'expired') return
   publish('expired')
+  keycloak.redirectUri = loginRedirectUri(window.location)
   void keycloak.clearToken().catch(() => publish('error'))
 }
 
@@ -59,7 +61,7 @@ export function initializeSession() {
         pkceMethod: 'S256',
         flow: 'standard',
         scope: 'openid profile email',
-        redirectUri: window.location.origin + '/',
+        redirectUri: loginRedirectUri(window.location),
         checkLoginIframe: false,
       })
       publish(authenticated ? 'authenticated' : 'anonymous')

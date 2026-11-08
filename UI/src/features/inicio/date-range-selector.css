@@ -1,0 +1,12 @@
+.dashboard-date-range { position: relative; flex-shrink: 0; max-width: 100%; }
+.dashboard-date-range summary { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid #e7e4e9; border-radius: 6px; background: #fff; color: #65596c; font-size: 11px; font-weight: 500; cursor: pointer; list-style: none; }
+.dashboard-date-range summary::-webkit-details-marker { display: none; }
+.dashboard-date-range[open] .date-range-chevron { transform: rotate(180deg); }
+.date-range-options { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; display: grid; gap: 8px; width: 260px; max-width: calc(100vw - 32px); padding: 16px; border: 1px solid #e7e4e9; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px #231c2414; }
+.date-range-options label { font-size: 12px; color: #65596c; }
+.date-range-options input { min-width: 0; width: 100%; border: 1px solid #e7e4e9; border-radius: 5px; padding: 7px 9px; font: inherit; color: #443941; background: #fff; }
+.date-range-options button { margin-top: 6px; }
+.dark .dashboard-date-range summary, .dark .date-range-options { background: #1b1b1b; border-color: #3b3b3f; color: #e8e5e7; }
+.dark .date-range-options label { color: #bcb7ba; }
+.dark .date-range-options input { color-scheme: dark; background: #242424; border-color: #3b3b3f; color: #e8e5e7; }
+@media (max-width: 540px) { .date-range-options { left: 0; right: auto; } }

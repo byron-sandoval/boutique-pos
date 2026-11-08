@@ -1,0 +1,80 @@
+.sidebar-inner .theme-toggle { display: flex; width: 100%; height: 40px; align-items: center; justify-content: flex-start; gap: 10px; padding: 0 12px; color: #797480; font-size: 12px; font-weight: 450; }
+.theme-label { flex: 1; text-align: left; }
+.theme-track { display: flex; align-items: center; width: 30px; height: 18px; padding: 2px; border-radius: 20px; background: #dcd5df; flex-shrink: 0; transition: background-color 150ms ease; }
+.theme-track > span { display: block; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #25182c18; transition: transform 150ms ease; }
+.theme-toggle[aria-checked="true"] .theme-track { background: #a67d98; }
+.theme-toggle[aria-checked="true"] .theme-track > span { transform: translateX(12px); }
+/* Superficies y colores del panel; los componentes shadcn usan también .dark. */
+:root.dark { --background: #101010; --foreground: #f4f4f5; --card: #1b1b1b; --card-foreground: #f4f4f5; --popover: #202020; --popover-foreground: #f4f4f5; --muted: #262626; --muted-foreground: #b1b1b8; --secondary: #242424; --secondary-foreground: #f0edef; --input: #383838; --primary: #bb93ad; --primary-foreground: #20191f; --accent: #332936; --accent-foreground: #efdeea; --ring: #b48ba6; --border: #343434; }
+.dark body { background: #101010; color: #f4f4f5; }
+.dark .desktop-sidebar, .dark .topbar, .dark .mobile-sidebar-content { background: #151515; border-color: #2c2c2c; }
+.dark .sidebar-inner { scrollbar-color: #49404f transparent; }
+.dark .brand, .dark .page-heading h1, .dark .user-copy strong { color: #fafafa; }
+.dark .brand .brand-toggle { background: #765068; color: #fff; }
+.dark .brand .brand-toggle:hover { background: #67445b; }
+.dark .brand-pos, .dark .nav-section-label, .dark .sidebar-footnote { color: #99999f; }
+.dark .nav-link, .dark .nav-children a, .dark .sidebar-inner .theme-toggle { color: #bcbcc2; }
+.dark .nav-link:hover, .dark .topbar-user .user-logout:hover { background: #242122; color: #e6c7dc; }
+.dark .nav-link.is-active, .dark .sidebar-collapsed .desktop-sidebar .group-active { background: #352836; color: #e0b6d2; }
+.dark .nav-link.group-active, .dark .nav-children a.is-active, .dark .nav-children a:hover { color: #dab0cc; }
+.dark .nav-children a:hover { background: #292329; }
+.dark .nav-children a.is-active { background: #3b2937; color: #efcbe3; }
+.dark .nav-children { border-color: #333333; }
+.dark .topbar-user .user-logout { color: #b8b8be; }
+.dark .user-avatar { background: #3a2d3b; color: #d9b6ce; }
+.dark .user-copy > span, .dark .page-heading p:not(.eyebrow), .dark .welcome { color: #bcb7ba; }
+.dark .eyebrow, .dark .heading-dot { color: #bf98b2; }
+.dark .surface-card, .dark .panel, .dark .welcome-card { background: #1b1b1b; border-color: #323232; box-shadow: none; }
+.dark .metric-primary { background: #765068; border-color: #765068; color: #fff; }
+.dark .metric-label, .dark .metric-value small, .dark .metric-change > span, .dark .subtle-label, .dark .card-heading p { color: #b3a5bb; }
+.dark .metric-primary .metric-label, .dark .metric-primary .metric-change { color: #f0e1ec; }
+.dark .metric-primary .metric-change > span { color: #dfc7d7; }
+.dark .card-heading h2, .dark .section-heading h2, .dark .module-placeholder h2 { color: #f1eff0; }
+.dark .positive, .dark .trend-pill { color: #96c8b0; }
+.dark .trend-pill, .dark .status-badge, .dark .badge { background: #233b32; color: #a0ccb5; }
+.dark .status-badge.cancelled { background: #3d2b2c; color: #d5aaa4; }
+.dark .badge.inactive { background: #2b2b2f; color: #c6c2c4; }
+.dark .rose { background: #3a2936; color: #c399b5; }
+.dark .sage { background: #2a3733; color: #a2beae; }
+.dark .sand { background: #393127; color: #cbb18a; }
+.dark .sparkline { color: #b28ba5; }
+.dark .metric-primary .sparkline { color: #cda9c0; }
+.dark .legend-dot.plum { background: #c39bb8; }
+.dark .legend-dot.gray { background: #716178; }
+.dark .legend-dot.sage-dot { background: #48b68c; }
+.dark .legend-dot.sand-dot { background: #e2af5e; }
+.dark .metric-stock-link { color: #d0b48e; }
+.dark .live-label { color: #96c8b0; }
+.dark .period-select { background: #1b1b1b; border-color: #3b3b3f; color: #c3bdc0; }
+.dark .period-select select { color: #e8e5e7; }
+.dark .period-select option { background: #1b1b1b; color: #f4f4f5; }
+.dark .chart-legend { color: #ad9bb8; }
+.dark .chart-axis { fill: #b6a5c1; }
+.dark .chart-periods { background: #252127; border-color: #3b3440; }
+.dark .chart-periods button { color: #b7acbd; }
+.dark .chart-periods button[aria-pressed="true"] { color: var(--primary-foreground); }
+.dark .sales-chart { --sales-line: #c39bb8; --sales-surface: #1b1b1b; }
+.dark .sales-chart line { stroke: #383838; }
+.dark .tiny-icon { color: #b499bf; }
+.dark .module-placeholder p { color: #b5a2bf; }
+.dark .card-footer-link, .dark .sales-tabs, .dark .table-footnote { border-color: #303030; }
+.dark .card-footer-link, .dark .text-link { color: #cba4bf; }
+.dark .text-link:hover, .dark .card-footer-link:hover { color: #efd4e6; }
+.dark .sales-tabs button { color: #b49bbf; }
+.dark .sales-tabs button.tab-active { color: #e6bdd9; border-bottom-color: #bf92ad; }
+.dark .table-scroll th { background: #202020; color: #c0babd; border-color: #303030; }
+.dark .table-scroll td { color: #ccc8ca; border-color: #303030; }
+.dark .customer-avatar { background: #3b2d3c; color: #cfaac1; }
+.dark .customer-cell strong, .dark .table-scroll .sale-total { color: #f0eeef; }
+.dark .customer-cell div > span, .dark .table-footnote, .dark .pagination { color: #ad98b9; }
+.dark .category-donut { background: conic-gradient(#b387a4 0 58%, #759b89 58% 86%, #b6a082 86% 100%); }
+.dark .category-donut > div { background: #1b1b1b; }
+.dark .category-donut strong, .dark .category-legend strong { color: #f2f0f1; }
+.dark .category-donut div > span, .dark .category-legend span { color: #b9a4c5; }
+.dark .placeholder-icon { background: #352737; color: #c4a0b8; }
+.dark .notice { background: #332737; color: #d2b5e0; }
+.dark .notice.error { background: #402a2b; color: #e0b2ac; }
+
+@media (min-width: 801px) {.sidebar-collapsed .desktop-sidebar .theme-label, .sidebar-collapsed .desktop-sidebar .theme-track { display: none; }.sidebar-collapsed .desktop-sidebar .theme-toggle { width: 44px; height: 44px; padding: 0; margin-inline: auto; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {.theme-track, .theme-track > span { transition: none; } }

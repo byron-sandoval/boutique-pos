@@ -12,7 +12,13 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:5173. Si no tienes sesión, la aplicación te envía directamente al login de Keycloak; después de autenticarte, muestra tu nombre, tus roles y las categorías obtenidas de la API. ADMIN y CAJERO pueden consultar esta pantalla. Todavía no incluye los formularios de los demás módulos.
+Abre http://localhost:5173. Si no tienes sesión, la aplicación te envía directamente al login de Keycloak. Después muestra el panel con tu nombre y una navegación adaptada a ADMIN o CAJERO.
+
+El inicio es una vista de diseño: sus indicadores, gráficas y ventas todavía usan datos de ejemplo. El selector de período, los filtros y los submenús funcionan localmente. Productos → Categorías conserva la consulta real a la API. Los demás módulos tienen una pantalla provisional; todavía no incluyen formularios ni nuevas operaciones de escritura.
+
+La estructura visual se encuentra en `src/components/layout`, el inicio en `src/features/inicio` y la navegación en `src/routes`. Se reutilizan Tailwind, shadcn/ui (Base UI), Lucide y Geist, sin dependencias nuevas. El panel usa rutas como `/ventas` y `/productos/categorias`, con historial del navegador y validación de roles. Los enlaces antiguos `/#/...` se convierten a rutas limpias al entrar. Keycloak regresa al módulo solicitado sin reutilizar los parámetros de su callback.
+
+Vite está configurado como SPA y admite abrir y recargar esas rutas en desarrollo y en `npm run preview`. Al desplegar los archivos de `dist`, el servidor web también debe devolver `index.html` para las rutas del panel que no correspondan a un archivo. Por ejemplo, en Nginx se utiliza `try_files $uri $uri/ /index.html;`. Esta configuración del alojamiento será necesaria cuando se prepare el despliegue del frontend.
 
 Vite usa el puerto 5173 y falla si está ocupado, para conservar las rutas autorizadas en Keycloak y CORS.
 
@@ -43,6 +49,6 @@ npm run lint
 npm test
 ```
 
-Las pruebas del cliente HTTP usan respuestas simuladas y no se conectan a PostgreSQL ni Keycloak. `npm test` requiere Node 24 o posterior.
+Las pruebas del cliente HTTP usan respuestas simuladas; las de navegación verifican las rutas permitidas para ADMIN y CAJERO. No se conectan a PostgreSQL ni Keycloak. `npm test` requiere Node 24 o posterior.
 
 Para comprobar la integración real: entrar como ADMIN, consultar categorías, cerrar sesión y repetir con CAJERO. Verificar también el cierre de sesión y la renovación del token. Esta comprobación requiere tus servicios en ejecución y tus usuarios; la compilación y las pruebas aisladas no la sustituyen.
