@@ -3,6 +3,29 @@
 Esta carpeta contiene la configuracion de PostgreSQL y Keycloak.
 El backend y la interfaz se ejecutan desde tu computadora por ahora.
 
+## Tema de login de Keycloak
+
+El tema `boutique` esta en `keycloak/themes/boutique/login` y extiende los
+formularios de Keycloak. Los estilos propios estan en
+`resources/css/boutique.css`. Las imagenes del login (logo, fondo, etc.) van
+en `resources/img/`; esta carpeta puede estar vacia hasta que agregues una.
+Desde el CSS puedes referenciar una imagen con `url('../img/fondo.webp')`.
+Estas imagenes son recursos visuales del tema, separados de las fotos de productos.
+
+Compose monta el tema en `/opt/keycloak/themes/boutique` en modo de solo lectura.
+Si el contenedor ya estaba creado, cuando decidas aplicar este montaje ejecuta
+`docker compose up -d keycloak` desde esta carpeta. Esto conserva el volumen.
+Despues selecciona el realm `boutique` en la consola de Keycloak y entra en
+**Realm settings > Themes > Login theme**, elige **boutique** y guarda.
+Crear los archivos no activa el tema en un realm que ya existe.
+
+El tema incluye una composicion de dos columnas y un fondo fotografico generado
+en `resources/img/boutique-login.png`, servido localmente por Keycloak.
+El movimiento suave del fondo es automatico y respeta la preferencia de movimiento reducido.
+En pantallas pequenas se muestra el formulario. Los formularios de acceso,
+recuperacion y acciones requeridas siguen siendo los originales de Keycloak.
+No se habilita el registro publico ni se cambia la configuracion del correo.
+
 ## Antes de iniciar
 
 Edita `.env` en esta carpeta y asigna tus propias contrasenas:

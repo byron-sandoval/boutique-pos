@@ -1,0 +1,76 @@
+/* Tema boutique: la autenticación y los formularios pertenecen a Keycloak. */
+:root {
+  --boutique-primary: #80546e;
+  --boutique-primary-hover: #6a415a;
+  --boutique-border: #e7dce3;
+}
+.login-pf body { margin: 0; background: #f8edf3 none; color: #30242e; font-family: "Segoe UI", Arial, sans-serif; }
+#kc-header-wrapper { color: #30242e; font-size: 25px; font-weight: 650; letter-spacing: -.7px; text-transform: none; }
+.login-pf-page .card-pf { max-width: 460px; border: 1px solid #fff; border-radius: 22px; background: #fffafc; box-shadow: 0 14px 42px #59344515; }
+#kc-page-title { font-size: 21px; font-weight: 650; letter-spacing: -.5px; }
+.login-pf-page .form-control, .login-pf-page .pf-c-form-control { min-height: 42px; border: 1px solid var(--boutique-border); border-radius: 8px; background: #fffdfd; font-size: 13px; }
+.login-pf-page input::placeholder { color: #9a8f99; opacity: 1; }
+.login-pf-page .form-control:focus, .login-pf-page .pf-c-form-control:focus { border-color: var(--boutique-primary); outline: none; box-shadow: 0 0 0 2px #80546e22; }
+.login-pf-page .pf-c-button.pf-m-primary { min-height: 44px; border-radius: 8px; background: var(--boutique-primary); background-image: none; font-size: 14px; font-weight: 600; box-shadow: none; }
+.login-pf-page .pf-c-button.pf-m-primary:hover, .login-pf-page .pf-c-button.pf-m-primary:focus { background: var(--boutique-primary-hover); }
+.login-pf-page a { color: #a6517d; }
+.login-pf-page a:hover { color: #783c5d; }
+.login-pf-page #kc-info-wrapper { background: #f5edf2; }
+/* No se ofrece autorregistro en el tema del POS. */
+#kc-registration-container { display: none; }
+
+/* Sin el script, los formularios originales conservan un diseño de una columna. */
+.login-pf body.boutique-split-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
+.boutique-split-layout > .login-pf-page { grid-column: 2; grid-row: 1; align-self: center; min-width: 0; width: 100%; padding: 40px 36px; }
+.boutique-split-layout #kc-header { margin: 0 0 22px; padding: 0; }
+.boutique-split-layout #kc-header-wrapper { padding: 0; }
+.boutique-split-layout .login-pf-page .card-pf { width: 100%; margin: 0 auto; padding: 30px 36px 24px; }
+.boutique-split-layout #kc-content-wrapper { margin-top: 26px; }
+.boutique-split-layout .login-pf-header { margin-bottom: 0; }
+.boutique-split-layout #kc-page-title { margin-top: 0; margin-bottom: 7px; text-align: center; }
+.boutique-login-subtitle { margin: 0; font-size: 13px; line-height: 1.5; color: #796b77; text-align: center; }
+.boutique-split-layout label { font-size: 12px; font-weight: 600; }
+.boutique-split-layout .pf-c-input-group { background: transparent; }
+.boutique-split-layout .pf-c-input-group > input { border-radius: 8px 0 0 8px; }
+.boutique-split-layout .pf-c-input-group > .pf-c-button { border: 1px solid var(--boutique-border); border-left: 0; border-radius: 0 8px 8px 0; color: #897789; background: #fffdfd; }
+.boutique-split-layout .pf-c-input-group > .pf-c-button::after { border: none; }
+.boutique-split-layout #kc-form-buttons { margin-top: 26px; }
+.boutique-login-brand { display: flex; align-items: center; flex-direction: column; gap: 8px; }
+.boutique-login-brand b, .boutique-wordmark b { display: inline-block; padding: 1px 6px 3px; border-radius: 7px; background: #dd87aa; color: #fff; font-weight: 550; }
+.boutique-login-footer { margin-top: 34px; padding-top: 20px; border-top: 1px solid #eadde5; text-align: center; }
+.boutique-login-footer > div { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
+.boutique-login-footer svg { width: 24px; height: 23px; color: #ad7291; }
+.boutique-login-footer p { margin: 6px 0 0; font-size: 11px; color: #897887; }
+
+.boutique-story { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; position: relative; min-height: 100vh; min-height: 100dvh; padding: 32px 58px 22px 44px; overflow: hidden; background: #503441; color: #fff8fc; -webkit-mask: url('../img/login-wave.svg') 0 0 / 100% 100% no-repeat; mask: url('../img/login-wave.svg') 0 0 / 100% 100% no-repeat; }
+.boutique-photo { position: absolute; inset: -12px; background: #48152d url('../img/boutique-login.png') center 90% / cover no-repeat; transform-origin: right bottom; animation: boutique-photo-drift 14s ease-in-out infinite, boutique-photo-zoom 8s ease-in-out infinite; pointer-events: none; }
+.boutique-story::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #38212e60, transparent 80%); pointer-events: none; }
+.boutique-story > :not(.boutique-photo) { position: relative; z-index: 1; }
+.boutique-wordmark { display: flex; align-items: center; gap: 9px; font-size: 23px; font-weight: 650; letter-spacing: -.8px; }
+.boutique-wordmark > svg { width: 38px; height: 35px; color: #eba4c4; }
+.boutique-wordmark b { padding: 1px 5px 2px; border-radius: 5px; background: #e39bb9; color: #4c2d3f; font-size: 16px; font-weight: 600; letter-spacing: -.5px; }
+.boutique-story-content { width: 100%; max-width: 380px; margin: 20px 0 auto; padding-top: 0; padding-bottom: 190px; }
+.boutique-eyebrow { margin: 0; font-size: 9px; font-weight: 500; letter-spacing: 1.8px; color: #e2cbd9; }
+.boutique-story h1 { margin: 14px 0; font-size: clamp(32px, 3vw, 46px); font-weight: 400; line-height: 1.12; letter-spacing: -1.3px; }
+.boutique-story h1 em { font-family: Georgia, serif; font-weight: 400; color: #eaa1c2; }
+.boutique-description { margin: 0; font-size: 13px; line-height: 1.6; color: #eadbe4; }
+.boutique-features { display: flex; gap: 10px; margin-top: 4px; }
+.boutique-features > div { width: 65px; text-align: center; font-size: 10px; line-height: 1.3; color: #f7e6f0; }
+.boutique-features > div > span { display: grid; place-items: center; width: 36px; height: 36px; margin: 0 auto 6px; border-radius: 9px; background: #ffffff12; }
+.boutique-features svg { width: 22px; height: 22px; }
+@keyframes boutique-photo-drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes boutique-photo-zoom { 0%, 100% { scale: 1; } 50% { scale: 1.015; } }
+@media (max-width: 1100px) and (min-width: 901px) {
+  .boutique-story { padding-inline: 28px 40px; }
+  .boutique-split-layout > .login-pf-page { padding-inline: 20px; }
+  .boutique-split-layout .login-pf-page .card-pf { padding-inline: 24px; }
+}
+@media (max-width: 900px) {
+  .login-pf body.boutique-split-layout { display: block; }
+  .boutique-story { display: none; }
+  .boutique-split-layout > .login-pf-page { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; min-height: 100dvh; padding: 28px 16px; }
+  .boutique-split-layout .login-pf-page .card-pf { padding: 28px 24px 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boutique-photo { animation: none !important; }
+}
