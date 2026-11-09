@@ -3,8 +3,15 @@ package com.boutique.backend.security;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.math.BigDecimal;
 
+import com.boutique.backend.empresa.controller.EmpresaController;
+import com.boutique.backend.empresa.controller.SucursalController;
+import com.boutique.backend.empresa.dto.EmpresaResponse;
+import com.boutique.backend.empresa.dto.SucursalResponse;
 import com.boutique.backend.empresa.entity.Sucursal;
+import com.boutique.backend.empresa.service.EmpresaService;
+import com.boutique.backend.empresa.service.SucursalService;
 import com.boutique.backend.usuario.controller.UsuarioController;
 import com.boutique.backend.usuario.dto.UsuarioResponse;
 import com.boutique.backend.usuario.entity.Usuario;
@@ -51,6 +58,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // Contexto MVC minimo: decoder y repositorio simulados, sin Spring Boot ni red.
@@ -61,6 +69,8 @@ class SecurityConfigTest {
     private UsuarioRepository usuarios;
     private JwtDecoder decoder;
     private UsuarioService usuarioService;
+    private EmpresaService empresaService;
+    private SucursalService sucursalService;
 
     @BeforeEach
     void setUp() {
@@ -72,10 +82,17 @@ class SecurityConfigTest {
         usuarios = context.getBean(UsuarioRepository.class);
         decoder = context.getBean(JwtDecoder.class);
         usuarioService = context.getBean(UsuarioService.class);
+        empresaService = context.getBean(EmpresaService.class);
+        sucursalService = context.getBean(SucursalService.class);
         when(decoder.decode("admin-token")).thenReturn(token("ADMIN"));
         when(decoder.decode("cajero-token")).thenReturn(token("CAJERO"));
         when(usuarioService.listar(any())).thenReturn(Page.empty());
         when(usuarioService.obtenerPorId(5L)).thenReturn(response());
+        when(empresaService.listar(any())).thenReturn(Page.empty());
+        when(empresaService.obtenerPorId(42L)).thenReturn(new EmpresaResponse(
+            42L, "Boutique", null, null, "Centro", null, null, null, null, new BigDecimal("15.00")));
+        when(sucursalService.listar(any())).thenReturn(Page.empty());
+        when(sucursalService.obtenerPorId(84L)).thenReturn(new SucursalResponse(84L, 42L, "Principal", "Centro", null, false));
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
@@ -149,6 +166,114 @@ class SecurityConfigTest {
             .andExpect(status().isForbidden());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/empresas", "/api/empresas/42", "/api/sucursales", "/api/sucursales/84"})
+    void adminActivoPuedeConsultarConfiguracionConSuSucursalInactiva(String ruta) throws Exception {
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(true, false)));
+
+        mvc.perform(get(ruta).header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminPuedeDesactivarSuSucursalConsultarYReactivarlaSinBloquearse() throws Exception {
+        Usuario admin = usuario(true, true);
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(admin));
+        when(sucursalService.cambiarEstado(anyLong(), anyBoolean())).thenAnswer(invocation -> {
+            boolean activa = invocation.getArgument(1);
+            admin.getSucursal().setActiva(activa);
+            return new SucursalResponse(84L, 42L, "Principal", "Centro", null, activa);
+        });
+
+        mvc.perform(patch("/api/sucursales/84/estado").header("Authorization", "Bearer admin-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":false}"))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/sucursales").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/prueba").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/sucursales/84/estado").header("Authorization", "Bearer admin-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":true}"))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/prueba").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void administradorDesactivadoNoObtieneLaExcepcionDeConfiguracion(boolean sucursalActiva) throws Exception {
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(false, sucursalActiva)));
+
+        mvc.perform(get("/api/empresas").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/sucursales").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/sucursales/84/estado").header("Authorization", "Bearer admin-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":true}"))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(empresaService, sucursalService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void cajeroNoObtieneLaExcepcionDeConfiguracion(boolean sucursalActiva) throws Exception {
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(true, sucursalActiva)));
+
+        mvc.perform(get("/api/empresas").header("Authorization", "Bearer cajero-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/sucursales").header("Authorization", "Bearer cajero-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/sucursales/84/estado").header("Authorization", "Bearer cajero-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":true}"))
+            .andExpect(status().isForbidden());
+
+        verifyNoInteractions(empresaService, sucursalService);
+    }
+
+    @Test
+    void nombreDeEmpresaSePuedeConsultarDesdeElMenuSegunElAccesoDelUsuario() throws Exception {
+        when(empresaService.nombreConfigurado()).thenReturn("Boutique David");
+        mvc.perform(get("/api/empresas/nombre")).andExpect(status().isUnauthorized());
+
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(true, true)));
+        mvc.perform(get("/api/empresas/nombre").header("Authorization", "Bearer cajero-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nombre").value("Boutique David"))
+            .andExpect(jsonPath("$.ruc").doesNotExist());
+        mvc.perform(get("/api/empresas/42").header("Authorization", "Bearer cajero-token"))
+            .andExpect(status().isForbidden());
+
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(true, false)));
+        mvc.perform(get("/api/empresas/nombre").header("Authorization", "Bearer cajero-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/empresas/nombre").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminSinSucursalActivaSigueBloqueadoEnOtrasRutas() throws Exception {
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.of(usuario(true, false)));
+
+        mvc.perform(get("/api/usuarios").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/ventas").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/cajas").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void configuracionRequiereTokenPeroPermiteElAdminInicial() throws Exception {
+        mvc.perform(get("/api/sucursales")).andExpect(status().isUnauthorized());
+        when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.empty());
+
+        mvc.perform(get("/api/empresas").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/sucursales").header("Authorization", "Bearer admin-token"))
+            .andExpect(status().isOk());
+    }
+
     @Test
     void permitePrepararElPosConUnAdminInicialSinRegistroLocal() throws Exception {
         when(usuarios.findByKeycloakId("kc-1")).thenReturn(Optional.empty());
@@ -214,6 +339,8 @@ class SecurityConfigTest {
 
         assertFalse(context.getBean(UsuarioAccessService.class)
             .puedeAcceder(new KeycloakJwtConverter().convert(jwt)));
+        assertFalse(context.getBean(UsuarioAccessService.class)
+            .puedeAdministrarEmpresa(new KeycloakJwtConverter().convert(jwt)));
     }
 
     private Jwt token(String rol) {
@@ -259,6 +386,10 @@ class SecurityConfigTest {
         @Bean UsuarioAccessService access(UsuarioRepository repository) { return new UsuarioAccessService(repository); }
         @Bean UsuarioService usuarioService() { return mock(UsuarioService.class); }
         @Bean UsuarioController usuarioController(UsuarioService service) { return new UsuarioController(service); }
+        @Bean EmpresaService empresaService() { return mock(EmpresaService.class); }
+        @Bean SucursalService sucursalService() { return mock(SucursalService.class); }
+        @Bean EmpresaController empresaController(EmpresaService service) { return new EmpresaController(service); }
+        @Bean SucursalController sucursalController(SucursalService service) { return new SucursalController(service); }
         @Bean WebMvcConfigurer paginacion() {
             return new WebMvcConfigurer() {
                 @Override

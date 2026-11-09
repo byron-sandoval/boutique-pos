@@ -15,6 +15,14 @@ public class UsuarioAccessService {
     private final UsuarioRepository usuarioRepository;
 
     public boolean puedeAcceder(Authentication authentication) {
+        return evaluarAcceso(authentication, false);
+    }
+
+    public boolean puedeAdministrarEmpresa(Authentication authentication) {
+        return evaluarAcceso(authentication, true);
+    }
+
+    private boolean evaluarAcceso(Authentication authentication, boolean administracionEmpresa) {
         if (!(authentication instanceof JwtAuthenticationToken token) || !token.isAuthenticated()) {
             return false;
         }
@@ -26,9 +34,12 @@ public class UsuarioAccessService {
         if (!admin && !cajero) {
             return false;
         }
+        if (administracionEmpresa && !admin) {
+            return false;
+        }
         return usuarioRepository.findByKeycloakId(token.getToken().getSubject())
             .map(usuario -> Boolean.TRUE.equals(usuario.getActivo())
-                && Boolean.TRUE.equals(usuario.getSucursal().getActiva()))
+                && (administracionEmpresa || Boolean.TRUE.equals(usuario.getSucursal().getActiva())))
             // Permite preparar el POS con un ADMIN inicial creado en Keycloak.
             .orElse(admin);
     }

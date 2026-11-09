@@ -1,6 +1,7 @@
 package com.boutique.backend.empresa.controller;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import com.boutique.backend.empresa.dto.EmpresaRequest;
@@ -19,7 +20,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -77,6 +81,19 @@ class EmpresaSucursalControllerTest {
                     """))
             .andExpect(status().isCreated())
             .andExpect(header().string("Location", "http://localhost/api/empresas/1"))
+            .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void actualizaLosDatosYElLogoEnUnaSolaSolicitud() throws Exception {
+        var datos = new MockMultipartFile("empresa", "empresa.json", MediaType.APPLICATION_JSON_VALUE, """
+            {"nombre":"Boutique","direccion":"Managua","porcentajeIva":15}
+            """.getBytes(StandardCharsets.UTF_8));
+        var logo = new MockMultipartFile("logo", "logo.png", MediaType.IMAGE_PNG_VALUE, new byte[] {1});
+        when(empresaService.actualizar(eq(1L), any(EmpresaRequest.class), eq(logo))).thenReturn(empresa());
+
+        mvc.perform(multipart(HttpMethod.PUT, "/api/empresas/1").file(datos).file(logo))
+            .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1));
     }
 

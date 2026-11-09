@@ -13,10 +13,12 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Validated
@@ -26,6 +28,12 @@ public class EmpresaService {
 
     private final EmpresaRepository empresaRepository;
     private final EmpresaMapper empresaMapper;
+    private final LogoStorage logoStorage;
+
+    public String nombreConfigurado() {
+        var empresas = empresaRepository.findAll(PageRequest.of(0, 2)).getContent();
+        return empresas.size() == 1 ? empresas.getFirst().getNombre() : null;
+    }
 
     public Page<EmpresaResponse> listar(@NotNull Pageable pageable) {
         return empresaRepository.findAll(pageable).map(empresaMapper::toResponse);
@@ -37,6 +45,11 @@ public class EmpresaService {
 
     @Transactional
     public EmpresaResponse crear(@NotNull @Valid EmpresaRequest request) {
+        return crear(request, null);
+    }
+
+    @Transactional
+    public EmpresaResponse crear(@NotNull @Valid EmpresaRequest request, MultipartFile logo) {
         String ruc = normalizarRuc(request.ruc());
         if (ruc != null && empresaRepository.existsByRuc(ruc)) {
             throw new ConflictoException("Ya existe una empresa con ese RUC.");
@@ -44,19 +57,42 @@ public class EmpresaService {
 
         Empresa empresa = empresaMapper.toEntity(request);
         empresa.setRuc(ruc);
+        if (logo != null) {
+            empresa.setLogoUrl(logoStorage.subir(logo, null));
+        }
         return empresaMapper.toResponse(guardar(empresa));
     }
 
     @Transactional
     public EmpresaResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid EmpresaRequest request) {
-        Empresa empresa = buscarEmpresa(id);
+        return actualizar(id, request, null, false);
+    }
+
+    @Transactional
+    public EmpresaResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid EmpresaRequest request,
+        MultipartFile logo) {
+        return actualizar(id, request, logo, true);
+    }
+
+    private EmpresaResponse actualizar(Long id, EmpresaRequest request, MultipartFile logo, boolean conservarLogo) {
+        Empresa empresa = empresaRepository.findOneById(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException("No existe la empresa con ID " + id + "."));
         String ruc = normalizarRuc(request.ruc());
         if (ruc != null && empresaRepository.existsByRucAndIdNot(ruc, id)) {
             throw new ConflictoException("Ya existe otra empresa con ese RUC.");
         }
 
+        String logoActual = empresa.getLogoUrl();
+        String logoNuevo = logoActual;
+        if (logo != null) {
+            boolean compartido = logoActual != null && empresaRepository.existsByLogoUrlAndIdNot(logoActual, id);
+            logoNuevo = logoStorage.subir(logo, compartido ? null : logoActual);
+        }
         empresaMapper.updateEntity(request, empresa);
         empresa.setRuc(ruc);
+        if (conservarLogo) {
+            empresa.setLogoUrl(logoNuevo);
+        }
         return empresaMapper.toResponse(guardar(empresa));
     }
 
