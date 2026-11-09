@@ -63,15 +63,17 @@ function SucursalesContent({ empresa }: { empresa: Empresa }) {
               <td>{sucursal.direccion}</td>
               <td>{sucursal.telefono || 'No registrado'}</td>
               <td><span className={`business-status ${sucursal.activa ? '' : 'is-inactive'}`}>{sucursal.activa ? 'Activa' : 'Inactiva'}</span></td>
-              <td><div className="branch-table-actions">
-                <Button variant="outline" size="sm" className="business-table-edit"
+              <td><div className="business-table-actions">
+                <Button variant="outline" size="icon-sm" title="Editar sucursal"
                   aria-label={`Editar sucursal ${sucursal.nombre}`} onClick={() => { setSuccess(''); setEditor({ sucursal }) }}>
-                  <Pencil size={14} />Editar
+                  <Pencil size={14} aria-hidden="true" />
                 </Button>
-                <Button variant="ghost" size="sm"
+                <Button variant="outline" size="icon-sm"
+                  data-table-action={sucursal.activa ? 'deactivate' : 'activate'}
+                  title={sucursal.activa ? 'Desactivar sucursal' : 'Activar sucursal'}
                   aria-label={`${sucursal.activa ? 'Desactivar' : 'Activar'} sucursal ${sucursal.nombre}`}
                   onClick={() => { setSuccess(''); setStateEditor(sucursal) }}>
-                  <Power size={14} />{sucursal.activa ? 'Desactivar' : 'Activar'}
+                  <Power size={14} aria-hidden="true" />
                 </Button>
               </div></td>
             </tr>)}</tbody>

@@ -17,9 +17,6 @@
 .business-fiscal-card {
   --business-tone: #486e61;
 }
-.dark .business-fiscal-card {
-  --business-tone: #a2beae;
-}
 .business-section-heading { display: flex; align-items: center; gap: 11px; }
 .business-symbol {
   display: grid;
@@ -145,25 +142,43 @@
 .business-table-name svg { flex-shrink: 0; color: var(--primary); }
 .business-series-next { font-variant-numeric: tabular-nums; font-weight: 600; }
 .business-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
+  display: inline-block;
+  padding: 3px 8px;
   border-radius: 5px;
-  background: #e7f2eb;
-  color: #32644b;
+  background: #dff7e9;
+  color: #087848;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 650;
 }
-.business-status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ''; }
-.dark .business-status { background: #233b32; color: #a0ccb5; }
-.business-status.is-inactive { background: var(--muted); color: var(--panel-text-muted); }
-.business-table .business-table-edit { color: var(--primary); }
+.business-status.is-inactive { background: #ffedd5; color: #964100; }
 .branch-table { min-width: 38rem; }
 .branch-table th[scope="row"] { min-width: 7.5rem; }
 .branch-table td:nth-child(2) { min-width: 8rem; white-space: pre-line; overflow-wrap: anywhere; }
 .branch-table td:nth-child(3) { min-width: 6.5rem; overflow-wrap: anywhere; }
-.branch-table-actions { display: flex; justify-content: center; align-items: center; gap: 6px; }
+.business-table-actions {
+  --table-action-edit: #7535b6;
+  --table-action-deactivate: #c32c47;
+  --table-action-activate: #087848;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+.business-table-actions [data-slot="button"] {
+  --business-action-color: var(--table-action-edit);
+  color: var(--business-action-color);
+  background: color-mix(in srgb, var(--business-action-color) 16%, var(--card));
+  border-color: color-mix(in srgb, var(--business-action-color) 55%, var(--card));
+}
+.business-table-actions [data-table-action="deactivate"] {
+  --business-action-color: var(--table-action-deactivate);
+}
+.business-table-actions [data-table-action="activate"] {
+  --business-action-color: var(--table-action-activate);
+}
+.business-table-actions [data-slot="button"]:hover {
+  background: color-mix(in srgb, var(--business-action-color) 25%, var(--card));
+}
 .business-dialog { width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); margin: auto; padding: 0; border: 1px solid var(--border); border-radius: 12px; color: var(--panel-text); background: var(--background); box-shadow: 0 20px 60px #00000026; }
 .business-dialog::backdrop { background: #17101966; }
 .business-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid var(--border); }
@@ -188,6 +203,26 @@
 .business-state-body > p { margin-bottom: 22px; }
 .dark .business-success { background: #20392c; color: #b0dec2; border-color: #355742; }
 .dark .business-dialog { color-scheme: dark; }
+.dark :is(.business-page, .business-dialog) {
+  --primary: #e0a6cf;
+  --primary-foreground: #271924;
+  --ring: #e0a6cf;
+  --input: #795c73;
+}
+.dark .business-fiscal-card { --business-tone: #a6dec2; }
+.dark :is(.business-detail-card, .business-table-card) :is(.business-symbol, .business-details dt > span) {
+  background: color-mix(in srgb, var(--business-tone) 22%, var(--card));
+}
+.dark .business-detail-card:first-child .business-symbol { background: var(--primary); }
+.dark .business-page-heading [data-slot="button"] > svg { color: var(--primary); }
+.dark .business-table-actions {
+  --table-action-edit: #bc79ff;
+  --table-action-deactivate: #ff526b;
+  --table-action-activate: #26df86;
+}
+.dark .business-related-arrow { background: var(--accent); border-color: var(--input); }
+.dark .business-status { background: #123a28; color: #46e697; }
+.dark .business-status.is-inactive { background: #422a13; color: #ffc16a; }
 @media (max-width: 640px) {
   .business-toolbar { width: 100%; }
   .business-fields { grid-template-columns: minmax(0, 1fr); gap: 20px; }

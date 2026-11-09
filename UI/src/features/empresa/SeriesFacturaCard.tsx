@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Pencil, Plus, ReceiptText, Save, Store } from 'lucide-react'
+import { Pencil, Plus, Power, ReceiptText, Save, Store } from 'lucide-react'
 import { api } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,6 +17,8 @@ type SerieFactura = {
   siguienteNumero: number
   activa: boolean
 }
+
+const mensajeSerieConVentas = 'No se puede desactivar esta serie de factura porque tiene ventas registradas.'
 
 async function listarSeries(signal: AbortSignal) {
   const series: SerieFactura[] = []
@@ -38,6 +40,7 @@ export function SeriesFacturaCard({ empresaId }: { empresaId: number }) {
   }, [empresaId])
   const { result, reload } = useRemote(cargar)
   const [editor, setEditor] = useState<{ serie: SerieFactura | null } | null>(null)
+  const [serieEstado, setSerieEstado] = useState<SerieFactura | null>(null)
   const [success, setSuccess] = useFlashMessage()
   const datos = result.status === 'ready' ? result.data : undefined
   const sucursalesActivas = datos?.sucursales.filter(sucursal => sucursal.activa) ?? []
@@ -77,11 +80,20 @@ export function SeriesFacturaCard({ empresaId }: { empresaId: number }) {
           <td>{serie.digitos}</td>
           <td className="business-series-next">{Number.isSafeInteger(serie.siguienteNumero) ? String(serie.siguienteNumero).padStart(serie.digitos, '0') : '—'}</td>
           <td><span className={`business-status ${serie.activa ? '' : 'is-inactive'}`}>{serie.activa ? 'Activa' : 'Inactiva'}</span></td>
-          <td><Button variant="outline" size="icon-sm" className="business-table-edit"
-            aria-label={`Editar serie ${serie.prefijo} de ${datos.nombres.get(serie.sucursalId)}`}
-            title="Editar serie" onClick={() => { setSuccess(''); setEditor({ serie }) }}>
-            <Pencil size={14} />
-          </Button></td>
+          <td><div className="business-table-actions">
+            <Button variant="outline" size="icon-sm"
+              aria-label={`Editar serie ${serie.prefijo} de ${datos.nombres.get(serie.sucursalId)}`}
+              title="Editar serie" onClick={() => { setSuccess(''); setEditor({ serie }) }}>
+              <Pencil size={14} aria-hidden="true" />
+            </Button>
+            <Button variant="outline" size="icon-sm"
+              data-table-action={serie.activa ? 'deactivate' : 'activate'}
+              aria-label={`${serie.activa ? 'Desactivar' : 'Activar'} serie ${serie.prefijo} de ${datos.nombres.get(serie.sucursalId)}`}
+              title={serie.activa ? 'Desactivar serie' : 'Activar serie'}
+              onClick={() => { setSuccess(''); setSerieEstado(serie) }}>
+              <Power size={14} aria-hidden="true" />
+            </Button>
+          </div></td>
         </tr>)}</tbody>
       </table>
     </div>}
@@ -96,7 +108,40 @@ export function SeriesFacturaCard({ empresaId }: { empresaId: number }) {
         reload()
       }}
     />}
+    {serieEstado && <SerieEstadoDialog serie={serieEstado} onClose={() => setSerieEstado(null)} onSaved={() => {
+      setSuccess(serieEstado.activa ? 'Serie de factura desactivada.' : 'Serie de factura activada.')
+      setSerieEstado(null)
+      reload()
+    }} />}
   </Card>
+}
+
+function SerieEstadoDialog({ serie, onClose, onSaved }: {
+  serie: SerieFactura
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { busy, error, save } = useSave()
+  const titulo = serie.activa ? 'Desactivar serie' : 'Activar serie'
+
+  return <RecordDialog title={titulo} description={`Serie ${serie.prefijo}`} busy={busy} onClose={onClose}>
+    <div className="business-state-body">
+      <p>{serie.activa
+        ? 'La serie dejará de estar disponible para nuevas facturas.'
+        : 'La serie volverá a estar disponible para nuevas facturas.'}</p>
+      {error && <p className="notice error" role="alert">{error}</p>}
+      <div className="business-form-actions">
+        <Button variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button>
+        <Button variant={serie.activa ? 'destructive' : 'default'} disabled={busy}
+          onClick={() => void save(() => api(`series-factura/${serie.id}/estado`, {
+            method: 'PATCH',
+            body: JSON.stringify({ activa: !serie.activa }),
+          }), onSaved, serie.activa ? mensajeSerieConVentas : undefined)}>
+          {busy ? 'Guardando…' : titulo}
+        </Button>
+      </div>
+    </div>
+  </RecordDialog>
 }
 
 type FormProps = {
@@ -129,7 +174,7 @@ function SerieFacturaForm({ serie, sucursales, nombreSucursal, onClose, onSaved 
         if (desactiva) {
           conflicto = cambiaFormato
             ? 'Una serie con ventas debe permanecer activa y conservar su formato. Revisa también que el prefijo esté disponible.'
-            : 'No se puede desactivar esta serie de factura porque tiene ventas registradas.'
+            : mensajeSerieConVentas
         }
         void save(() => api(`series-factura/${serie.id}`, { method: 'PUT', body: JSON.stringify(formato) }), onSaved, conflicto)
       } else {
