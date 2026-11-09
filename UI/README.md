@@ -14,7 +14,18 @@ npm run dev
 
 Abre http://localhost:5173. Si no tienes sesión, la aplicación te envía directamente al login de Keycloak. Después muestra el panel con tu nombre y una navegación adaptada a ADMIN o CAJERO.
 
-El inicio es una vista de diseño: sus indicadores, gráficas y ventas todavía usan datos de ejemplo. El selector de período, los filtros y los submenús funcionan localmente. Productos → Categorías conserva la consulta real a la API. Los demás módulos tienen una pantalla provisional; todavía no incluyen formularios ni nuevas operaciones de escritura.
+El inicio es una vista de diseño: sus indicadores, gráficas y ventas todavía usan datos de ejemplo. El selector de período, los filtros y los submenús funcionan localmente. Productos → Categorías conserva la consulta real a la API. Configuración → Empresa y Sucursales ya consultan y guardan datos mediante los endpoints existentes del backend. Los demás módulos mantienen su pantalla provisional.
+
+## Empresa y sucursales
+
+Estas pantallas son exclusivas de ADMIN; Spring Boot sigue verificando los permisos.
+
+- **Empresa:** configuración de un solo negocio. Solo permite el registro inicial cuando no existe una empresa; después muestra sus datos y permite editarlos. No incluye eliminación ni carga de archivos. Guardar el nombre no cambia automáticamente el tema de Keycloak.
+- **Sucursales:** listado completo, registro, edición y activación/desactivación con confirmación. Se asocian automáticamente a la empresa del negocio. Se conservan los datos al desactivar.
+- Se utiliza el ID real de la empresa, sin presuponer el ID 1. Si la API devuelve más de una empresa, se muestra un error para revisar los registros; no se elige una arbitrariamente. La API existente conserva sus contratos; esta pantalla no administra múltiples empresas.
+- Los formularios validan los campos obligatorios, sus longitudes y el IVA entre 0 y 100 con hasta dos decimales. Ante un error se conserva lo escrito. Los guardados no se reintentan automáticamente.
+
+Para probar con tus servicios: entra como ADMIN y abre **Configuración → Empresa**. Consulta los datos existentes o registra tu empresa si la lista está vacía. Luego abre **Sucursales** y registra un local; se asociará a tu empresa automáticamente. Las acciones de guardar y cambiar estado sí escriben en la base de datos del backend configurado.
 
 La estructura visual se encuentra en `src/components/layout`, el inicio en `src/features/inicio` y la navegación en `src/routes`. Se reutilizan Tailwind, shadcn/ui (Base UI), Lucide y Geist, sin dependencias nuevas. El panel usa rutas como `/ventas` y `/productos/categorias`, con historial del navegador y validación de roles. Los enlaces antiguos `/#/...` se convierten a rutas limpias al entrar. Keycloak regresa al módulo solicitado sin reutilizar los parámetros de su callback.
 
@@ -49,6 +60,6 @@ npm run lint
 npm test
 ```
 
-Las pruebas del cliente HTTP usan respuestas simuladas; las de navegación verifican las rutas permitidas para ADMIN y CAJERO. No se conectan a PostgreSQL ni Keycloak. `npm test` requiere Node 24 o posterior.
+Las pruebas del cliente HTTP usan respuestas simuladas; las de navegación verifican las rutas permitidas para ADMIN y CAJERO. Las del módulo Empresa comprueban validaciones, paginación, campos enviados y los contratos de creación, edición y cambio de estado. No se conectan a PostgreSQL ni Keycloak. `npm test` requiere Node 24 o posterior.
 
 Para comprobar la integración real: entrar como ADMIN, consultar categorías, cerrar sesión y repetir con CAJERO. Verificar también el cierre de sesión y la renovación del token. Esta comprobación requiere tus servicios en ejecución y tus usuarios; la compilación y las pruebas aisladas no la sustituyen.

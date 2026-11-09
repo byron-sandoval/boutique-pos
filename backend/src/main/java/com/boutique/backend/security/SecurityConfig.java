@@ -6,8 +6,10 @@ import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,6 +28,8 @@ public class SecurityConfig {
         UsuarioAccessService usuarios, CorsConfigurationSource corsConfigurationSource) throws Exception {
         AuthorizationManager<RequestAuthorizationContext> activo = (authentication, context) ->
             new AuthorizationDecision(usuarios.puedeAcceder(authentication.get()));
+        AuthorizationManager<RequestAuthorizationContext> administracionEmpresa = (authentication, context) ->
+            new AuthorizationDecision(usuarios.puedeAdministrarEmpresa(authentication.get()));
         return http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
@@ -33,6 +37,10 @@ public class SecurityConfig {
             .requestCache(cache -> cache.disable())
             .authorizeHttpRequests(authorize -> authorize
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/empresas/nombre")
+                    .access(AuthorizationManagers.anyOf(administracionEmpresa, activo))
+                .requestMatchers("/api/empresas", "/api/empresas/**", "/api/sucursales", "/api/sucursales/**")
+                    .access(administracionEmpresa)
                 .anyRequest().access(activo))
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
             .build();

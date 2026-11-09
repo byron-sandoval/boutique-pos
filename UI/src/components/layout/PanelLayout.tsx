@@ -8,6 +8,7 @@ import './logout-confirmation.css'
 
 type Props = {
   name: string
+  nombreEmpresa: string
   roles: string[]
   path: string
   onLogout: () => void
@@ -15,14 +16,14 @@ type Props = {
   children: ReactNode
 }
 
-export function PanelLayout({ name, roles, path, onLogout, loggingOut, children }: Props) {
+export function PanelLayout({ name, nombreEmpresa, roles, path, onLogout, loggingOut, children }: Props) {
   const mobileMenu = useRef<HTMLDialogElement>(null)
   const logoutDialog = useRef<HTMLDialogElement>(null)
   const logoutTitleId = useId()
   const logoutDescriptionId = useId()
   const [collapsed, setCollapsed] = useState(false)
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()
-  const sidebarProps = { roles, path }
+  const sidebarProps = { roles, path, nombreEmpresa }
 
   return <div className={`panel-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a>

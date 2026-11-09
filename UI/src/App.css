@@ -15,8 +15,7 @@ svg { flex-shrink: 0; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px; text-decoration: none; font-size: 24px; font-weight: 650; letter-spacing: -1px; color: #312733; }
 .brand .brand-toggle { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; background: #765068; color: #fff; border-radius: 8px; padding: 0; }
 .brand .brand-toggle:hover { background: #67445b; }
-.brand-name { white-space: nowrap; text-decoration: none; }
-.brand-pos { font-size: 12px; letter-spacing: 1px; font-weight: 600; color: var(--panel-text-muted); margin-left: 6px; }
+.brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; font-size: 18px; letter-spacing: -.4px; }
 .nav-section-label { font-size: 11px; font-weight: 600; letter-spacing: 1.6px; color: var(--panel-text-muted); padding: 0 13px; margin: 32px 0 12px; }
 .sidebar-inner nav { display: grid; gap: 5px; }
 .nav-link { display: flex; align-items: center; width: 100%; gap: 12px; padding: 10px 13px; color: var(--panel-text-secondary); border: 0; border-radius: 7px; background: transparent; text-decoration: none; font-size: 13px; font-weight: 500; text-align: left; }
@@ -31,7 +30,7 @@ svg { flex-shrink: 0; }
 .nav-children a:hover { background: #faf6f9; }
 .nav-children a.is-active { background: #f2e6ee; color: #69445e; font-weight: 600; }
 .sidebar-bottom { margin-top: auto; padding-top: 30px; }
-.sidebar-footnote { display: flex; justify-content: space-between; margin: 17px 10px 0; font-size: 10px; color: var(--panel-text-muted); letter-spacing: 1.3px; }
+.sidebar-footnote { margin: 17px 10px 0; font-size: 10px; color: var(--panel-text-muted); letter-spacing: 1.3px; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-body { margin-left: var(--sidebar-width); display: flex; min-height: 100dvh; flex-direction: column; transition: margin-left 180ms ease; }
 .topbar { height: 76px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; border-bottom: 1px solid #f0ecee; padding: 0 34px; }
 .topbar-user { margin-left: auto; display: flex; align-items: center; gap: 11px; }
@@ -158,7 +157,6 @@ svg { flex-shrink: 0; }
 .mobile-sidebar-content { position: relative; width: 270px; height: 100%; background: white; box-shadow: 20px 0 80px #25182c11; }
 .mobile-sidebar .sidebar-inner { padding-top: 30px; }
 .mobile-sidebar .brand { font-size: 23px; }
-.mobile-sidebar .brand-pos { display: none; }
 .topbar .mobile-menu-button { display: none; }
 @media (min-width: 1600px) {.panel-content { padding-top: 40px; }.metric-card { padding: 16px 18px; }.card-heading { padding-top: 18px; } }
 @media (max-width: 1240px) {.panel-shell { --sidebar-width: 218px; }.sidebar-inner { padding-inline: 12px; }.panel-content { padding-inline: 24px; }.topbar { padding-inline: 24px; }.dashboard-main-grid, .dashboard-bottom-grid { gap: 18px; grid-template-columns: minmax(0, 1.6fr) minmax(265px, 1fr); }.metrics-grid { gap: 12px; }.metric-card { padding: 16px; }.metric-value { font-size: 24px; }.metric-change > span { max-width: 88px; }.donut-layout { gap: 17px; padding-inline: 18px; }.category-donut { width: 105px; height: 105px; }.category-donut > div { width: 79px; height: 79px; }.card-heading { padding-inline: 18px; }.table-scroll th, .table-scroll td { padding-inline: 12px; } }

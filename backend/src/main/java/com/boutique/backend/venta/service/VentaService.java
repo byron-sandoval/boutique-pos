@@ -94,7 +94,8 @@ public class VentaService {
     @Transactional
     public VentaResponse crear(@NotNull @Valid VentaRequest request) {
         Usuario usuario = usuarioActual();
-        Sucursal sucursal = sucursalRepository.findById(usuario.getSucursal().getId())
+        // La sucursal sigue activa durante el cobro y permite ventas concurrentes.
+        Sucursal sucursal = sucursalRepository.findByIdParaVenta(usuario.getSucursal().getId())
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sucursal del usuario."));
         if (!Boolean.TRUE.equals(sucursal.getActiva())) {
             throw new ConflictoException("La sucursal debe estar activa para vender.");

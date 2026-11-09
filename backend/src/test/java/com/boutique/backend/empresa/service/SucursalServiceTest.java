@@ -10,7 +10,9 @@ import com.boutique.backend.empresa.entity.Sucursal;
 import com.boutique.backend.empresa.mapper.SucursalMapper;
 import com.boutique.backend.empresa.repository.EmpresaRepository;
 import com.boutique.backend.empresa.repository.SucursalRepository;
+import com.boutique.backend.shared.exception.ConflictoException;
 import com.boutique.backend.shared.exception.RecursoNoEncontradoException;
+import com.boutique.backend.venta.repository.VentaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -40,12 +43,14 @@ class SucursalServiceTest {
 
     @Mock
     private EmpresaRepository empresaRepository;
+    @Mock
+    private VentaRepository ventaRepository;
 
     private SucursalService service;
 
     @BeforeEach
     void setUp() {
-        service = new SucursalService(sucursalRepository, empresaRepository, new SucursalMapper());
+        service = new SucursalService(sucursalRepository, empresaRepository, new SucursalMapper(), ventaRepository);
     }
 
     @Test
@@ -60,7 +65,7 @@ class SucursalServiceTest {
 
     @Test
     void informaCuandoNoExisteLaSucursalQueSeQuiereActualizar() {
-        when(sucursalRepository.findById(99L)).thenReturn(Optional.empty());
+        when(sucursalRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class,
             () -> service.actualizar(99L, new SucursalRequest(1L, "Centro", "Managua", null, true)));
@@ -72,7 +77,7 @@ class SucursalServiceTest {
     @Test
     void noModificaLaSucursalSiLaNuevaEmpresaNoExiste() {
         Sucursal sucursal = sucursal(empresa(1L));
-        when(sucursalRepository.findById(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
         when(empresaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class,
@@ -87,7 +92,7 @@ class SucursalServiceTest {
     void actualizaUsandoLaEmpresaResueltaSinCambiarElIdDeSucursal() {
         Sucursal sucursal = sucursal(empresa(1L));
         Empresa empresa = empresa(3L);
-        when(sucursalRepository.findById(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
         when(empresaRepository.findById(3L)).thenReturn(Optional.of(empresa));
         when(sucursalRepository.save(sucursal)).thenReturn(sucursal);
 
@@ -102,7 +107,7 @@ class SucursalServiceTest {
     @Test
     void desactivaLaSucursalSinEliminarlaNiCambiarSuEmpresa() {
         Sucursal sucursal = sucursal(empresa(1L));
-        when(sucursalRepository.findById(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
         when(sucursalRepository.save(sucursal)).thenReturn(sucursal);
 
         SucursalResponse response = service.cambiarEstado(2L, false);
@@ -111,8 +116,48 @@ class SucursalServiceTest {
         assertEquals(2L, response.id());
         assertEquals(1L, response.empresaId());
         assertEquals("Centro", response.nombre());
+        verify(ventaRepository).existsBySucursalId(2L);
         verify(sucursalRepository, never()).delete(any(Sucursal.class));
         verify(sucursalRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void rechazaDesactivarPorEstadoUnaSucursalConVentas() {
+        Sucursal sucursal = sucursal(empresa(1L));
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
+        when(ventaRepository.existsBySucursalId(2L)).thenReturn(true);
+
+        assertThrows(ConflictoException.class, () -> service.cambiarEstado(2L, false));
+
+        assertTrue(sucursal.getActiva());
+        verify(sucursalRepository, never()).save(any(Sucursal.class));
+    }
+
+    @Test
+    void rechazaDesactivarPorEdicionUnaSucursalConVentasSinCambiarSusDatos() {
+        Empresa empresa = empresa(1L);
+        Sucursal sucursal = sucursal(empresa);
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
+        when(empresaRepository.findById(1L)).thenReturn(Optional.of(empresa));
+        when(ventaRepository.existsBySucursalId(2L)).thenReturn(true);
+
+        var request = new SucursalRequest(1L, "Otro nombre", "León", null, false);
+        assertThrows(ConflictoException.class, () -> service.actualizar(2L, request));
+
+        assertTrue(sucursal.getActiva());
+        assertEquals("Centro", sucursal.getNombre());
+        verify(sucursalRepository, never()).save(any(Sucursal.class));
+    }
+
+    @Test
+    void permiteReactivarUnaSucursalSinConsultarSusVentas() {
+        Sucursal sucursal = sucursal(empresa(1L));
+        sucursal.setActiva(false);
+        when(sucursalRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursalRepository.save(sucursal)).thenReturn(sucursal);
+
+        assertTrue(service.cambiarEstado(2L, true).activa());
+        verifyNoInteractions(ventaRepository);
     }
 
     @Test
