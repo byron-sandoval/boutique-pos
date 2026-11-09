@@ -3,6 +3,7 @@ package com.boutique.backend.producto.service;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import com.boutique.backend.empresa.service.LogoStorage;
 import com.boutique.backend.producto.dto.CategoriaRequest;
 import com.boutique.backend.producto.dto.ProductoRequest;
 import com.boutique.backend.producto.dto.UnidadMedidaRequest;
@@ -26,6 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -45,6 +47,7 @@ class CatalogoServiceTest {
     @Mock private CategoriaRepository categorias;
     @Mock private UnidadMedidaRepository unidades;
     @Mock private ProductoRepository productos;
+    @Mock private LogoStorage imagenes;
 
     private CategoriaService categoriaService;
     private UnidadMedidaService unidadService;
@@ -54,7 +57,7 @@ class CatalogoServiceTest {
     void setUp() {
         categoriaService = new CategoriaService(categorias, new CategoriaMapper());
         unidadService = new UnidadMedidaService(unidades, new UnidadMedidaMapper());
-        productoService = new ProductoService(productos, categorias, unidades, new ProductoMapper());
+        productoService = new ProductoService(productos, categorias, unidades, new ProductoMapper(), imagenes);
     }
 
     @Test
@@ -125,7 +128,7 @@ class CatalogoServiceTest {
         producto.setCodigo("P-001");
         producto.setCategoria(categoria());
         producto.setUnidadMedida(unidad());
-        when(productos.findById(3L)).thenReturn(Optional.of(producto));
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
         when(productos.saveAndFlush(producto)).thenReturn(producto);
 
         productoService.cambiarEstado(3L, false);
@@ -187,7 +190,7 @@ class CatalogoServiceTest {
         Producto producto = new Producto();
         producto.setId(3L);
         producto.setNombre("Nombre original");
-        when(productos.findById(3L)).thenReturn(Optional.of(producto));
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
         when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
         when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
         when(productos.existsByCodigoAndIdNot("P-002", 3L)).thenReturn(true);
@@ -196,6 +199,39 @@ class CatalogoServiceTest {
 
         assertEquals("Nombre original", producto.getNombre());
         verify(productos, never()).saveAndFlush(any(Producto.class));
+    }
+
+    @Test
+    void editarSinAdjuntoConservaLaImagenAnterior() {
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl("https://example.com/foto.png");
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        var actualizado = productoService.actualizar(3L, request("P-001"), null);
+
+        assertEquals("https://example.com/foto.png", actualizado.imagenUrl());
+        verifyNoInteractions(imagenes);
+    }
+
+    @Test
+    void guardaLaUrlSubidaYEntregaLaAnteriorParaReemplazarla() {
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl("https://example.com/anterior.png");
+        var archivo = new MockMultipartFile("imagen", "nueva.png", "image/png", new byte[] {1});
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(imagenes.subirProducto(archivo, "https://example.com/anterior.png")).thenReturn("https://example.com/nueva.png");
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        var actualizado = productoService.actualizar(3L, request("P-001"), archivo);
+
+        assertEquals("https://example.com/nueva.png", actualizado.imagenUrl());
     }
 
     @ParameterizedTest

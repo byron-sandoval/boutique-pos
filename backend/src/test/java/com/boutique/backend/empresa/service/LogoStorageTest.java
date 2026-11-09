@@ -89,6 +89,26 @@ class LogoStorageTest {
         server.verify();
     }
 
+    @Test
+    void subeLaFotoDelProductoEnSuCarpetaYReemplazaLaAnteriorAlConfirmar() {
+        String anterior = OBJETOS + "public/marca/productos/" + NOMBRE_ANTERIOR;
+        server.expect(requestTo(matchesPattern(
+                "https://example\\.supabase\\.co/storage/v1/object/marca/productos/[a-f0-9-]+\\.png")))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withSuccess());
+        server.expect(requestTo(OBJETOS + "marca/productos/" + NOMBRE_ANTERIOR))
+            .andExpect(method(HttpMethod.DELETE))
+            .andExpect(request -> assertTrue(transaccionTerminada))
+            .andRespond(withSuccess());
+
+        String url = storage.subirProducto(logo, anterior);
+        assertTrue(url.startsWith(OBJETOS + "public/marca/productos/"));
+        assertNotEquals(anterior, url);
+
+        completar(TransactionSynchronization.STATUS_COMMITTED);
+        server.verify();
+    }
+
     private void esperarSubida() {
         server.expect(requestTo(matchesPattern(
                 "https://example\\.supabase\\.co/storage/v1/object/marca/logos/[a-f0-9-]+\\.png")))

@@ -1,6 +1,7 @@
 package com.boutique.backend.producto.controller;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -32,7 +33,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -45,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -94,6 +98,18 @@ class ProductoControllerTest {
         mvc.perform(post("/api/" + recurso).contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andExpect(header().string("Location", "http://localhost/api/" + recurso + "/1"))
+            .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void editaProductoYFotoEnUnaSolaSolicitud() throws Exception {
+        var datos = new MockMultipartFile("producto", "producto.json", MediaType.APPLICATION_JSON_VALUE,
+            productoJson("10.00").getBytes(StandardCharsets.UTF_8));
+        var imagen = new MockMultipartFile("imagen", "foto.png", MediaType.IMAGE_PNG_VALUE, new byte[] {1});
+        when(productos.actualizar(eq(1L), any(ProductoRequest.class), eq(imagen))).thenReturn(producto(true));
+
+        mvc.perform(multipart(HttpMethod.PUT, "/api/productos/1").file(datos).file(imagen))
+            .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1));
     }
 
