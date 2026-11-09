@@ -58,9 +58,7 @@ public class SerieFacturaService {
         String prefijo = request.prefijo().toUpperCase(Locale.ROOT);
         validarPrefijo(serie.getSucursal().getId(), prefijo, id);
         boolean cambiaFormato = !serie.getPrefijo().equals(prefijo) || !serie.getDigitos().equals(request.digitos());
-        if (cambiaFormato && serieRepository.contarVentas(id) > 0) {
-            throw new ConflictoException("No puedes cambiar el formato de una serie que ya tiene ventas registradas.");
-        }
+        validarCambiosConVentas(serie, request.activa(), cambiaFormato);
         mapper.updateEntity(request, serie);
         return mapper.toResponse(guardar(serie));
     }
@@ -68,8 +66,19 @@ public class SerieFacturaService {
     @Transactional
     public SerieFacturaResponse cambiarEstado(@NotNull @Positive Long id, boolean activa) {
         SerieFactura serie = buscarParaActualizar(id);
+        validarCambiosConVentas(serie, activa, false);
         serie.setActiva(activa);
         return mapper.toResponse(guardar(serie));
+    }
+
+    private void validarCambiosConVentas(SerieFactura serie, boolean activa, boolean cambiaFormato) {
+        boolean desactiva = Boolean.TRUE.equals(serie.getActiva()) && !activa;
+        if ((desactiva || cambiaFormato) && serieRepository.contarVentas(serie.getId()) > 0) {
+            String mensaje = desactiva
+                ? "No se puede desactivar esta serie de factura porque tiene ventas registradas."
+                : "No puedes cambiar el formato de una serie que ya tiene ventas registradas.";
+            throw new ConflictoException(mensaje);
+        }
     }
 
     private void validarPrefijo(Long sucursalId, String prefijo, Long id) {

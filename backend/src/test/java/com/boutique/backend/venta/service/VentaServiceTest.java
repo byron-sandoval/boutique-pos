@@ -118,7 +118,7 @@ class VentaServiceTest {
 
     private void cabeceraValida() {
         autenticar();
-        when(sucursales.findById(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursales.findByIdParaVenta(2L)).thenReturn(Optional.of(sucursal));
         when(cajas.obtenerParaVenta(5L, 7L, 2L)).thenReturn(caja);
         when(monedas.findByIdParaVenta(1L)).thenReturn(Optional.of(moneda));
     }
@@ -212,7 +212,7 @@ class VentaServiceTest {
     void exigeSucursalActiva() {
         autenticar();
         sucursal.setActiva(false);
-        when(sucursales.findById(2L)).thenReturn(Optional.of(sucursal));
+        when(sucursales.findByIdParaVenta(2L)).thenReturn(Optional.of(sucursal));
         assertThrows(ConflictoException.class, () -> service.crear(solicitud()));
         verifyNoInteractions(ventas, stock, cajas, numeracion);
     }

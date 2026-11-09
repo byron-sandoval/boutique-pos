@@ -14,6 +14,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface VentaRepository extends JpaRepository<Venta, Long> {
 
+    boolean existsBySucursalId(Long sucursalId);
+
     @Query("""
         select v from Venta v
         where v.sucursal.id = :sucursalId

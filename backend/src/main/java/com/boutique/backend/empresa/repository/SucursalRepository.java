@@ -18,4 +18,8 @@ public interface SucursalRepository extends JpaRepository<Sucursal, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Sucursal s where s.id = :id")
     Optional<Sucursal> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select s from Sucursal s where s.id = :id")
+    Optional<Sucursal> findByIdParaVenta(@Param("id") Long id);
 }

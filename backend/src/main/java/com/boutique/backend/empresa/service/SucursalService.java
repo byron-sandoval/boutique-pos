@@ -7,7 +7,9 @@ import com.boutique.backend.empresa.entity.Sucursal;
 import com.boutique.backend.empresa.mapper.SucursalMapper;
 import com.boutique.backend.empresa.repository.EmpresaRepository;
 import com.boutique.backend.empresa.repository.SucursalRepository;
+import com.boutique.backend.shared.exception.ConflictoException;
 import com.boutique.backend.shared.exception.RecursoNoEncontradoException;
+import com.boutique.backend.venta.repository.VentaRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -27,6 +29,7 @@ public class SucursalService {
     private final SucursalRepository sucursalRepository;
     private final EmpresaRepository empresaRepository;
     private final SucursalMapper sucursalMapper;
+    private final VentaRepository ventaRepository;
 
     public Page<SucursalResponse> listar(@NotNull Pageable pageable) {
         return sucursalRepository.findAll(pageable).map(sucursalMapper::toResponse);
@@ -50,15 +53,17 @@ public class SucursalService {
 
     @Transactional
     public SucursalResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid SucursalRequest request) {
-        Sucursal sucursal = buscarSucursal(id);
+        Sucursal sucursal = bloquearSucursal(id);
         Empresa empresa = buscarEmpresa(request.empresaId());
+        validarDesactivacion(sucursal, request.activa());
         sucursalMapper.updateEntity(request, empresa, sucursal);
         return sucursalMapper.toResponse(sucursalRepository.save(sucursal));
     }
 
     @Transactional
     public SucursalResponse cambiarEstado(@NotNull @Positive Long id, boolean activa) {
-        Sucursal sucursal = buscarSucursal(id);
+        Sucursal sucursal = bloquearSucursal(id);
+        validarDesactivacion(sucursal, activa);
         sucursal.setActiva(activa);
         return sucursalMapper.toResponse(sucursalRepository.save(sucursal));
     }
@@ -70,6 +75,21 @@ public class SucursalService {
 
     private Sucursal buscarSucursal(Long id) {
         return sucursalRepository.findById(id)
-            .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sucursal con ID " + id + "."));
+            .orElseThrow(() -> sucursalNoEncontrada(id));
+    }
+
+    private Sucursal bloquearSucursal(Long id) {
+        return sucursalRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> sucursalNoEncontrada(id));
+    }
+
+    private RecursoNoEncontradoException sucursalNoEncontrada(Long id) {
+        return new RecursoNoEncontradoException("No existe la sucursal con ID " + id + ".");
+    }
+
+    private void validarDesactivacion(Sucursal sucursal, boolean activa) {
+        if (!activa && Boolean.TRUE.equals(sucursal.getActiva()) && ventaRepository.existsBySucursalId(sucursal.getId())) {
+            throw new ConflictoException("No se puede desactivar esta sucursal porque tiene ventas registradas.");
+        }
     }
 }

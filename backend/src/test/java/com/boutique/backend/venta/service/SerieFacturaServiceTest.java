@@ -125,12 +125,37 @@ class SerieFacturaServiceTest {
     }
 
     @Test
-    void permiteDesactivarUnaSerieUsadaSinCambiarSuFormato() {
+    void impideDesactivarUnaSerieConVentasAlEditar() {
+        SerieFactura serie = serie();
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(serie));
+        when(repository.contarVentas(1L)).thenReturn(1L);
+
+        assertThrows(ConflictoException.class,
+            () -> service.actualizar(1L, new SerieFacturaUpdateRequest("FAC-", 6, false)));
+
+        assertTrue(serie.getActiva());
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void impideDesactivarUnaSerieConVentasAlCambiarEstado() {
+        SerieFactura serie = serie();
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(serie));
+        when(repository.contarVentas(1L)).thenReturn(1L);
+
+        assertThrows(ConflictoException.class, () -> service.cambiarEstado(1L, false));
+
+        assertTrue(serie.getActiva());
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void permiteDesactivarUnaSerieSinVentasAlEditar() {
         SerieFactura serie = serie();
         when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(serie));
         when(repository.saveAndFlush(serie)).thenReturn(serie);
         assertFalse(service.actualizar(1L, new SerieFacturaUpdateRequest("FAC-", 6, false)).activa());
-        verify(repository, never()).contarVentas(any());
+        verify(repository).contarVentas(1L);
     }
 
     @Test
@@ -142,6 +167,7 @@ class SerieFacturaServiceTest {
         assertFalse(response.activa());
         assertEquals("FAC-", response.prefijo());
         assertEquals(80L, response.siguienteNumero());
+        verify(repository).contarVentas(1L);
         verify(repository, never()).delete(any());
         verify(repository, never()).deleteById(any());
     }
