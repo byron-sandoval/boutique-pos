@@ -37,7 +37,6 @@ export const navigation: NavItem[] = [
     { label: 'Empresa', path: '/configuracion/empresa', roles: admin },
     { label: 'Sucursales', path: '/configuracion/sucursales', roles: admin },
     { label: 'Monedas', path: '/configuracion/monedas', roles: admin },
-    { label: 'Series de factura', path: '/configuracion/series', roles: both },
   ] },
 ]
 

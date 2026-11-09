@@ -13,7 +13,7 @@
 .dark .brand, .dark .page-heading h1, .dark .user-copy strong { color: #fafafa; }
 .dark .brand .brand-toggle { background: #765068; color: #fff; }
 .dark .brand .brand-toggle:hover { background: #67445b; }
-.dark .brand-pos, .dark .nav-section-label, .dark .sidebar-footnote { color: #99999f; }
+.dark .nav-section-label, .dark .sidebar-footnote { color: #99999f; }
 .dark .nav-link, .dark .nav-children a, .dark .sidebar-inner .theme-toggle { color: #bcbcc2; }
 .dark .nav-link:hover { background: #242122; color: #e6c7dc; }
 .dark .nav-link.is-active, .dark .sidebar-collapsed .desktop-sidebar .group-active { background: #352836; color: #e0b6d2; }

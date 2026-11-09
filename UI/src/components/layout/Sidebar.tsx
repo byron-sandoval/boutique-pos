@@ -9,6 +9,7 @@ import { ThemeToggle } from './ThemeToggle'
 const icons = { inicio: House, ventas: ShoppingBag, caja: Banknote, productos: Package, compras: ShoppingCart, inventario: Boxes, clientes: UserRound, proveedores: Truck, usuarios: UsersRound, configuracion: Settings2 }
 
 type SidebarProps = {
+  nombreEmpresa: string
   roles: string[]
   path: string
   onNavigate?: () => void
@@ -41,18 +42,18 @@ function NavigationItem({ item, path, onNavigate, collapsed, onExpandSidebar }: 
   </div>
 }
 
-export function Sidebar({ roles, path, onNavigate, collapsed = false, onToggle, toggleLabel }: SidebarProps) {
+export function Sidebar({ nombreEmpresa, roles, path, onNavigate, collapsed = false, onToggle, toggleLabel }: SidebarProps) {
   const navId = useId()
   return <div className="sidebar-inner">
     <div className="brand">
       <Button variant="ghost" size="icon" className="brand-toggle" onClick={onToggle} aria-label={toggleLabel || (collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral')} aria-expanded={!collapsed} aria-controls={navId} title={toggleLabel || (collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral')}><Menu size={21} aria-hidden="true" /></Button>
-      <PanelLink className="brand-name" href="/inicio" onClick={onNavigate} aria-label="Boutique POS, ir al inicio">Boutique<span className="brand-pos">POS</span></PanelLink>
+      <PanelLink className="brand-name" href="/inicio" onClick={onNavigate} aria-label={`${nombreEmpresa}, ir al inicio`} title={nombreEmpresa}>{nombreEmpresa}</PanelLink>
     </div>
     <p className="nav-section-label">PRINCIPAL</p>
     <nav id={navId} aria-label="Navegación principal">{visibleNavigation(roles).map(item => <NavigationItem key={item.icon} item={item} path={path} onNavigate={onNavigate} collapsed={collapsed} onExpandSidebar={onToggle} />)}</nav>
     <div className="sidebar-bottom">
       <ThemeToggle />
-      <p className="sidebar-footnote">BOUTIQUE POS</p>
+      <p className="sidebar-footnote" title={nombreEmpresa}>{nombreEmpresa}</p>
     </div>
   </div>
 }
