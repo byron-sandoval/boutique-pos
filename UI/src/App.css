@@ -118,9 +118,17 @@ svg { flex-shrink: 0; }
 .customer-cell > div { display: grid; gap: 3px; }
 .customer-cell strong { color: var(--panel-text); font-size: 11px; font-weight: 500; }
 .customer-cell div > span { font-size: 10px; color: var(--panel-text-secondary); }
-.status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 4px; font-size: 10px; color: #477d66; background: #eff6f2; white-space: nowrap; }
-.status-badge > span { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
-.status-badge.cancelled { background: #f7f0ef; color: #b79892; }
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 650;
+  color: #087848;
+  background: #dff7e9;
+  white-space: nowrap;
+}
+.status-badge.cancelled { background: #ffe2e8; color: #ad2543; }
 .table-scroll .sale-total { color: var(--panel-text); font-weight: 550; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .text-right { text-align: right; }
 .nowrap { white-space: nowrap; }
