@@ -51,3 +51,5 @@ export function sucursalRequest(form: FormData): SucursalRequest {
     telefono: text(form, 'telefono', 20) || null, activa: form.get('activa') === 'on',
   }
 }
+
+export const mensajeSucursalConVentas = 'No se puede desactivar esta sucursal porque tiene ventas registradas.'

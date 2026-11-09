@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Pencil, Plus, ReceiptText, Save } from 'lucide-react'
+import { Pencil, Plus, ReceiptText, Save, Store } from 'lucide-react'
 import { api } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -42,10 +42,13 @@ export function SeriesFacturaCard({ empresaId }: { empresaId: number }) {
   const datos = result.status === 'ready' ? result.data : undefined
   const sucursalesActivas = datos?.sucursales.filter(sucursal => sucursal.activa) ?? []
 
-  return <Card className="business-series-card">
-    <div className="business-list-toolbar">
-      <h2 className="business-series-heading"><ReceiptText size={18} aria-hidden="true" /> Series de factura</h2>
-      {sucursalesActivas.length > 0 && <Button variant="outline" onClick={() => { setSuccess(''); setEditor({ serie: null }) }}>
+  return <Card className="business-table-card business-series-card">
+    <div className="business-table-toolbar">
+      <div className="business-section-heading">
+        <span className="business-symbol"><ReceiptText size={20} aria-hidden="true" /></span>
+        <div><h2>Series de factura</h2><p>Configura el prefijo y la numeración de tus facturas.</p></div>
+      </div>
+      {sucursalesActivas.length > 0 && <Button onClick={() => { setSuccess(''); setEditor({ serie: null }) }}>
         <Plus size={16} />Nueva serie
       </Button>}
     </div>
@@ -58,22 +61,30 @@ export function SeriesFacturaCard({ empresaId }: { empresaId: number }) {
     {datos && datos.series.length === 0 && <p>
       {sucursalesActivas.length > 0 ? 'Todavía no hay series de factura registradas.' : 'Necesitas una sucursal activa para crear una serie.'}
     </p>}
-    {datos?.series.map(serie => <section className="business-series-row" key={serie.id}>
-      <div className="business-list-toolbar">
-        <h3>{datos.nombres.get(serie.sucursalId)}</h3>
-        <div className="business-row-actions">
-          <span className={`badge ${serie.activa ? '' : 'inactive'}`}>{serie.activa ? 'Activa' : 'Inactiva'}</span>
-          <Button variant="ghost" size="sm" aria-label={`Editar serie ${serie.prefijo} de ${datos.nombres.get(serie.sucursalId)}`} onClick={() => { setSuccess(''); setEditor({ serie }) }}>
-            <Pencil size={14} />Editar
-          </Button>
-        </div>
-      </div>
-      <dl className="business-invoice-details">
-        <div><dt>Prefijo</dt><dd>{serie.prefijo}</dd></div>
-        <div><dt>Dígitos</dt><dd>{serie.digitos}</dd></div>
-        <div><dt>Siguiente</dt><dd>{Number.isSafeInteger(serie.siguienteNumero) ? String(serie.siguienteNumero).padStart(serie.digitos, '0') : '—'}</dd></div>
-      </dl>
-    </section>)}
+    {datos && datos.series.length > 0 && <div className="business-table-scroll" role="region" aria-label="Series de factura" tabIndex={0}>
+      <table className="business-table business-series-table">
+        <thead><tr>
+          <th scope="col">Sucursal</th>
+          <th scope="col">Prefijo</th>
+          <th scope="col">Dígitos</th>
+          <th scope="col">Siguiente</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Acciones</th>
+        </tr></thead>
+        <tbody>{datos.series.map(serie => <tr key={serie.id}>
+          <th scope="row"><span className="business-table-name"><Store size={14} aria-hidden="true" />{datos.nombres.get(serie.sucursalId)}</span></th>
+          <td>{serie.prefijo}</td>
+          <td>{serie.digitos}</td>
+          <td className="business-series-next">{Number.isSafeInteger(serie.siguienteNumero) ? String(serie.siguienteNumero).padStart(serie.digitos, '0') : '—'}</td>
+          <td><span className={`business-status ${serie.activa ? '' : 'is-inactive'}`}>{serie.activa ? 'Activa' : 'Inactiva'}</span></td>
+          <td><Button variant="outline" size="icon-sm" className="business-table-edit"
+            aria-label={`Editar serie ${serie.prefijo} de ${datos.nombres.get(serie.sucursalId)}`}
+            title="Editar serie" onClick={() => { setSuccess(''); setEditor({ serie }) }}>
+            <Pencil size={14} />
+          </Button></td>
+        </tr>)}</tbody>
+      </table>
+    </div>}
     {editor && datos && <SerieFacturaForm
       serie={editor.serie}
       sucursales={sucursalesActivas}
@@ -99,34 +110,34 @@ type FormProps = {
 function SerieFacturaForm({ serie, sucursales, nombreSucursal, onClose, onSaved }: FormProps) {
   const { busy, error, save } = useSave()
 
-  async function guardar(form: FormData) {
-    const formato = {
-      prefijo: String(form.get('prefijo') ?? '').toUpperCase(),
-      digitos: Number(form.get('digitos')),
-      activa: form.get('activa') === 'on',
-    }
-
-    if (serie) {
-      await api(`series-factura/${serie.id}`, { method: 'PUT', body: JSON.stringify(formato) })
-      return
-    }
-
-    await api('series-factura', {
-      method: 'POST',
-      body: JSON.stringify({ ...formato, sucursalId: Number(form.get('sucursalId')), siguienteNumero: Number(form.get('siguienteNumero')) }),
-    })
-  }
-
   return <RecordDialog title={serie ? 'Editar serie de factura' : 'Nueva serie de factura'}
     description={serie ? `Sucursal ${nombreSucursal}. El siguiente número se asigna automáticamente al facturar.` : 'Configura la numeración para una sucursal activa.'}
     busy={busy} onClose={onClose}>
     <form className="business-form" onSubmit={event => {
       event.preventDefault()
       const form = new FormData(event.currentTarget)
-      const conflicto = serie
-        ? 'Revisa si el prefijo ya existe o si la serie tiene ventas que impiden cambiar su formato.'
-        : 'Revisa que la sucursal siga activa y que el prefijo esté disponible.'
-      void save(() => guardar(form), onSaved, conflicto)
+      const formato = {
+        prefijo: String(form.get('prefijo') ?? '').toUpperCase(),
+        digitos: Number(form.get('digitos')),
+        activa: form.get('activa') === 'on',
+      }
+
+      if (serie) {
+        const desactiva = serie.activa && !formato.activa
+        const cambiaFormato = formato.prefijo !== serie.prefijo || formato.digitos !== serie.digitos
+        let conflicto = 'Revisa si el prefijo ya existe o si la serie tiene ventas que impiden cambiar su formato.'
+        if (desactiva) {
+          conflicto = cambiaFormato
+            ? 'Una serie con ventas debe permanecer activa y conservar su formato. Revisa también que el prefijo esté disponible.'
+            : 'No se puede desactivar esta serie de factura porque tiene ventas registradas.'
+        }
+        void save(() => api(`series-factura/${serie.id}`, { method: 'PUT', body: JSON.stringify(formato) }), onSaved, conflicto)
+      } else {
+        void save(() => api('series-factura', {
+          method: 'POST',
+          body: JSON.stringify({ ...formato, sucursalId: Number(form.get('sucursalId')), siguienteNumero: Number(form.get('siguienteNumero')) }),
+        }), onSaved, 'Revisa que la sucursal siga activa y que el prefijo esté disponible.')
+      }
     }}>
       <fieldset disabled={busy}>
         <legend>Numeración de facturas</legend>

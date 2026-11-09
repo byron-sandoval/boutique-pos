@@ -1,6 +1,6 @@
 import { Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { sucursalRequest } from './model'
+import { mensajeSucursalConVentas, sucursalRequest } from './model'
 import type { Empresa, Sucursal } from './model'
 import { empresaService } from './data'
 import { useSave } from './hooks'
@@ -15,7 +15,8 @@ export function SucursalForm({ sucursal, empresa, onClose, onSaved }: Props) {
       event.preventDefault()
       const form = new FormData(event.currentTarget)
       form.set('empresaId', String(empresa.id))
-      void save(() => empresaService.guardarSucursal(sucursalRequest(form), sucursal?.id), onSaved)
+      const conflicto = sucursal && form.get('activa') !== 'on' ? mensajeSucursalConVentas : undefined
+      void save(() => empresaService.guardarSucursal(sucursalRequest(form), sucursal?.id), onSaved, conflicto)
     }}>
       <fieldset disabled={busy}>
         <legend>Datos de la sucursal</legend>

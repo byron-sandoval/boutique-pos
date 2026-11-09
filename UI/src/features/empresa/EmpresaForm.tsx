@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Save } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -11,10 +11,20 @@ import { RecordDialog } from './RecordDialog'
 const logoFormats = ['image/png', 'image/jpeg', 'image/webp']
 const maxLogoBytes = 2 * 1024 * 1024
 
-export function EmpresaForm({ empresa, onClose, onSaved }: { empresa: Empresa | null; onClose: () => void; onSaved: (empresa: Empresa) => void }) {
+export function EmpresaForm({ empresa, focusLogo = false, onClose, onSaved }: {
+  empresa: Empresa | null
+  focusLogo?: boolean
+  onClose: () => void
+  onSaved: (empresa: Empresa) => void
+}) {
   const { busy, error, save } = useSave()
   const [logoPreview, setLogoPreview] = useState<string>()
   const [logoError, setLogoError] = useState('')
+  const logoInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (focusLogo) logoInput.current?.focus()
+  }, [focusLogo])
 
   useEffect(() => {
     if (logoPreview) return () => URL.revokeObjectURL(logoPreview)
@@ -44,7 +54,7 @@ export function EmpresaForm({ empresa, onClose, onSaved }: { empresa: Empresa | 
       <fieldset disabled={busy}>
         <legend>Datos generales</legend>
         <div className="business-fields">
-          <label>Nombre de la empresa *<input name="nombre" required maxLength={100} defaultValue={empresa?.nombre ?? ''} autoComplete="organization" autoFocus /></label>
+          <label>Nombre de la empresa *<input name="nombre" required maxLength={100} defaultValue={empresa?.nombre ?? ''} autoComplete="organization" autoFocus={!focusLogo} /></label>
           <label>RUC<input name="ruc" maxLength={20} defaultValue={empresa?.ruc ?? ''} /></label>
           <label className="business-field-wide">Dirección *<textarea name="direccion" required maxLength={255} rows={2} defaultValue={empresa?.direccion ?? ''} autoComplete="street-address" /></label>
           <label>Teléfono<input name="telefono" type="tel" maxLength={20} defaultValue={empresa?.telefono ?? ''} autoComplete="tel" /></label>
@@ -63,7 +73,7 @@ export function EmpresaForm({ empresa, onClose, onSaved }: { empresa: Empresa | 
         <div className="business-fields">
           <label className="business-field-wide">Eslogan<input name="eslogan" maxLength={150} defaultValue={empresa?.eslogan ?? ''} /></label>
           <label className="business-field-wide">Subir logo
-            <input name="logo" type="file" accept={logoFormats.join(',')} onChange={event => {
+            <input ref={logoInput} name="logo" type="file" accept={logoFormats.join(',')} onChange={event => {
               const file = event.currentTarget.files?.[0]
               setLogoError('')
               if (file && (!logoFormats.includes(file.type) || file.size > maxLogoBytes)) {

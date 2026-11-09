@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { MapPin, Pencil, Plus, Power } from 'lucide-react'
+import { MapPin, Pencil, Plus, Power, Store } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PanelLink } from '@/routes/PanelLink'
@@ -15,7 +15,7 @@ export function SucursalesPage() {
   const { result, reload } = useRemote(empresaService.empresa)
   if (result.status === 'ready' && result.data) return <SucursalesContent empresa={result.data} />
   return <div className="business-page">
-    <div className="page-heading"><div><h1>Sucursales</h1><p>Gestiona los locales de tu negocio.</p></div></div>
+    <div className="page-heading business-page-heading"><div><h1>Sucursales</h1><p>Gestiona los locales de tu negocio.</p></div></div>
     {result.status === 'loading' && <Card className="business-empty"><p role="status">Cargando la empresa…</p></Card>}
     {result.status === 'error' && <Card className="business-empty"><p className="notice error" role="alert">{result.message}</p><Button variant="outline" onClick={reload}>Reintentar</Button></Card>}
     {result.status === 'ready' && !result.data && <Card className="business-empty"><MapPin size={30} aria-hidden="true" /><h2>Primero configura tu empresa</h2><p>Después podrás registrar los locales del negocio.</p><PanelLink href="/configuracion/empresa" className="text-link">Configurar empresa</PanelLink></Card>}
@@ -30,20 +30,53 @@ function SucursalesContent({ empresa }: { empresa: Empresa }) {
   const [success, setSuccess] = useFlashMessage()
 
   return <div className="business-page">
-    <div className="page-heading">
+    <div className="page-heading business-page-heading">
       <div><h1>Sucursales</h1><p>Gestiona los locales de {empresa.nombre}.</p></div>
-      <Button onClick={() => { setSuccess(''); setEditor({ sucursal: null }) }}><Plus size={16} />Nueva sucursal</Button>
     </div>
     {success && <p className="business-success" role="status">{success}</p>}
-    <Card className="business-list">
-      <div className="business-list-toolbar"><h2>Listado de sucursales</h2></div>
-      {result.status === 'loading' && <p className="business-loading" role="status">Cargando sucursales…</p>}
-      {result.status === 'error' && <div className="business-empty"><p className="notice error" role="alert">{result.message}</p><Button variant="outline" onClick={reload}>Reintentar</Button></div>}
-      {result.status === 'ready' && (
-        result.data.length === 0 ? <div className="business-empty"><MapPin size={30} aria-hidden="true" /><h3>No hay sucursales registradas</h3><p>Registra un local de tu negocio.</p><Button onClick={() => setEditor({ sucursal: null })}><Plus size={16} />Nueva sucursal</Button></div>
-          : <div className="table-scroll"><table className="business-table"><thead><tr><th>Sucursal</th><th>Dirección</th><th>Teléfono</th><th>Estado</th><th className="text-right">Acciones</th></tr></thead><tbody>{result.data.map(sucursal => <tr key={sucursal.id}>
-            <td><strong>{sucursal.nombre}</strong></td><td>{sucursal.direccion}</td><td>{sucursal.telefono || '—'}</td><td><span className={`badge ${sucursal.activa ? '' : 'inactive'}`}>{sucursal.activa ? 'Activa' : 'Inactiva'}</span></td><td><div className="business-row-actions"><Button variant="ghost" size="sm" aria-label={`Editar sucursal ${sucursal.nombre}`} onClick={() => { setSuccess(''); setEditor({ sucursal }) }}><Pencil size={14} />Editar</Button><Button variant="ghost" size="sm" aria-label={`${sucursal.activa ? 'Desactivar' : 'Activar'} sucursal ${sucursal.nombre}`} onClick={() => { setSuccess(''); setStateEditor(sucursal) }}><Power size={14} />{sucursal.activa ? 'Desactivar' : 'Activar'}</Button></div></td>
-          </tr>)}</tbody></table></div>
+    <Card className="business-table-card">
+      <div className="business-table-toolbar">
+        <div className="business-section-heading">
+          <span className="business-symbol"><Store size={20} aria-hidden="true" /></span>
+          <div><h2>Listado de sucursales</h2><p>Dirección, teléfono y estado de cada local.</p></div>
+        </div>
+        <Button onClick={() => { setSuccess(''); setEditor({ sucursal: null }) }}><Plus size={16} />Nueva sucursal</Button>
+      </div>
+      {result.status === 'loading' && <p role="status">Cargando sucursales…</p>}
+      {result.status === 'error' && <div>
+        <p className="notice error" role="alert">{result.message}</p>
+        <Button variant="outline" onClick={reload}>Reintentar</Button>
+      </div>}
+      {result.status === 'ready' && (result.data.length === 0
+        ? <p>Todavía no hay sucursales registradas.</p>
+        : <div className="business-table-scroll" role="region" aria-label="Listado de sucursales" tabIndex={0}>
+          <table className="business-table branch-table">
+            <thead><tr>
+              <th scope="col">Sucursal</th>
+              <th scope="col">Dirección</th>
+              <th scope="col">Teléfono</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
+            </tr></thead>
+            <tbody>{result.data.map(sucursal => <tr key={sucursal.id}>
+              <th scope="row"><span className="business-table-name"><Store size={14} aria-hidden="true" />{sucursal.nombre}</span></th>
+              <td>{sucursal.direccion}</td>
+              <td>{sucursal.telefono || 'No registrado'}</td>
+              <td><span className={`business-status ${sucursal.activa ? '' : 'is-inactive'}`}>{sucursal.activa ? 'Activa' : 'Inactiva'}</span></td>
+              <td><div className="branch-table-actions">
+                <Button variant="outline" size="sm" className="business-table-edit"
+                  aria-label={`Editar sucursal ${sucursal.nombre}`} onClick={() => { setSuccess(''); setEditor({ sucursal }) }}>
+                  <Pencil size={14} />Editar
+                </Button>
+                <Button variant="ghost" size="sm"
+                  aria-label={`${sucursal.activa ? 'Desactivar' : 'Activar'} sucursal ${sucursal.nombre}`}
+                  onClick={() => { setSuccess(''); setStateEditor(sucursal) }}>
+                  <Power size={14} />{sucursal.activa ? 'Desactivar' : 'Activar'}
+                </Button>
+              </div></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
       )}
     </Card>
     {editor && <SucursalForm sucursal={editor.sucursal} empresa={empresa} onClose={() => setEditor(null)} onSaved={() => { setSuccess(editor.sucursal ? 'Sucursal actualizada correctamente.' : 'Sucursal registrada correctamente.'); setEditor(null); reload() }} />}
