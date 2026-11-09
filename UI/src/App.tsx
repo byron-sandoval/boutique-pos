@@ -7,6 +7,7 @@ import { Categorias } from './features/categorias/Categorias'
 import { EmpresaPage } from './features/empresa/EmpresaPage'
 import { SucursalesPage } from './features/empresa/SucursalesPage'
 import { MonedasPage } from './features/monedas/MonedasPage'
+import { ProductosPage } from './features/productos/ProductosPage'
 import { empresaService } from './features/empresa/data'
 import { useRemote } from './features/empresa/hooks'
 import { Button } from './components/ui/button'
@@ -57,7 +58,8 @@ function PanelAutenticado({ session }: { session: Session }) {
       : path === '/configuracion/empresa' ? <EmpresaPage onNombreGuardado={setNombreGuardado} />
       : path === '/configuracion/sucursales' ? <SucursalesPage />
       : path === '/configuracion/monedas' ? <MonedasPage />
-      : path === '/productos/categorias' ? <><div className="page-heading"><div><p className="eyebrow">PRODUCTOS</p><h1>Categorías</h1><p>Organiza las colecciones de tu boutique.</p></div><span className="live-label"><span /> Datos de tu boutique</span></div><Categorias /></>
+      : path === '/productos' ? <ProductosPage puedeEditar={session.roles.includes('ADMIN')} />
+      : path === '/productos/categorias' ? <Categorias puedeEditar={session.roles.includes('ADMIN')} />
       : <ModulePlaceholder title={page.label} />}
   </PanelLayout>
 }

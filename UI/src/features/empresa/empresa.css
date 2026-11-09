@@ -28,7 +28,7 @@
   background: var(--business-tint, var(--accent));
   color: var(--business-tone, var(--accent-foreground));
 }
-.business-detail-card:first-child .business-symbol, .business-related .business-symbol {
+.business-detail-card:first-child:not(.business-fiscal-card) .business-symbol, .business-related .business-symbol {
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -156,6 +156,7 @@
 .branch-table td:nth-child(2) { min-width: 8rem; white-space: pre-line; overflow-wrap: anywhere; }
 .branch-table td:nth-child(3) { min-width: 6.5rem; overflow-wrap: anywhere; }
 .business-table-actions {
+  --table-action-view: #2157b8;
   --table-action-edit: #7535b6;
   --table-action-deactivate: #c32c47;
   --table-action-activate: #087848;
@@ -172,6 +173,9 @@
 }
 .business-table-actions [data-table-action="deactivate"] {
   --business-action-color: var(--table-action-deactivate);
+}
+.business-table-actions [data-table-action="view"] {
+  --business-action-color: var(--table-action-view);
 }
 .business-table-actions [data-table-action="activate"] {
   --business-action-color: var(--table-action-activate);
@@ -213,9 +217,10 @@
 .dark :is(.business-detail-card, .business-table-card) :is(.business-symbol, .business-details dt > span) {
   background: color-mix(in srgb, var(--business-tone) 22%, var(--card));
 }
-.dark .business-detail-card:first-child .business-symbol { background: var(--primary); }
+.dark .business-detail-card:first-child:not(.business-fiscal-card) .business-symbol { background: var(--primary); }
 .dark .business-page-heading [data-slot="button"] > svg { color: var(--primary); }
 .dark .business-table-actions {
+  --table-action-view: #60a5fa;
   --table-action-edit: #bc79ff;
   --table-action-deactivate: #ff526b;
   --table-action-activate: #26df86;
