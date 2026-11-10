@@ -6,7 +6,7 @@
 .theme-toggle[aria-checked="true"] .theme-track > span { transform: translateX(12px); }
 /* Superficies y colores del panel; los componentes shadcn usan también .dark. */
 :root.dark { --panel-text: #f4f4f5; --panel-text-secondary: #d4cfd3; --panel-text-muted: #bcb7ba; }
-:root.dark { --background: #000000; --foreground: #f4f4f5; --card: #171717; --card-foreground: #f4f4f5; --popover: #202020; --popover-foreground: #f4f4f5; --muted: #262626; --muted-foreground: #b1b1b8; --secondary: #242424; --secondary-foreground: #f0edef; --input: #383838; --primary: #bb93ad; --primary-foreground: #20191f; --accent: #332936; --accent-foreground: #efdeea; --ring: #b48ba6; --border: #343434; }
+:root.dark { --background: #000000; --foreground: #f4f4f5; --card: #202020; --card-foreground: #f4f4f5; --popover: #202020; --popover-foreground: #f4f4f5; --muted: #262626; --muted-foreground: #b1b1b8; --secondary: #242424; --secondary-foreground: #f0edef; --input: #383838; --primary: #bb93ad; --primary-foreground: #20191f; --accent: #332936; --accent-foreground: #efdeea; --ring: #b48ba6; --border: #343434; }
 .dark body { background: var(--background); color: #f4f4f5; }
 .dark .desktop-sidebar, .dark .topbar, .dark .mobile-sidebar-content { background: #151515; border-color: #2c2c2c; }
 .dark .sidebar-inner { scrollbar-color: #49404f transparent; }
