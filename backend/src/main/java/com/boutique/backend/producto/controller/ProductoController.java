@@ -8,6 +8,7 @@ import com.boutique.backend.producto.dto.ProductoResponse;
 import com.boutique.backend.producto.service.ProductoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,8 +43,12 @@ public class ProductoController {
     @GetMapping
     public PagedModel<ProductoResponse> listar(
         @RequestParam(required = false) @Positive Long categoriaId,
+        @RequestParam(required = false) @Size(max = 100) String busqueda,
         @PageableDefault(size = 20, sort = "id") Pageable pageable
     ) {
+        if (busqueda != null && !busqueda.isBlank()) {
+            return new PagedModel<>(productoService.buscar(busqueda.strip(), categoriaId, pageable));
+        }
         Page<ProductoResponse> page = categoriaId == null
             ? productoService.listar(pageable)
             : productoService.listarPorCategoria(categoriaId, pageable);

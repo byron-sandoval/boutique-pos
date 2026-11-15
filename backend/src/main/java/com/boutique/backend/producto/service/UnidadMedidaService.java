@@ -5,6 +5,7 @@ import com.boutique.backend.producto.dto.UnidadMedidaResponse;
 import com.boutique.backend.producto.entity.UnidadMedida;
 import com.boutique.backend.producto.mapper.UnidadMedidaMapper;
 import com.boutique.backend.producto.repository.UnidadMedidaRepository;
+import com.boutique.backend.producto.repository.ProductoRepository;
 import com.boutique.backend.shared.exception.ConflictoException;
 import com.boutique.backend.shared.exception.RecursoNoEncontradoException;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class UnidadMedidaService {
 
     private final UnidadMedidaRepository unidadMedidaRepository;
     private final UnidadMedidaMapper unidadMedidaMapper;
+    private final ProductoRepository productoRepository;
 
     public Page<UnidadMedidaResponse> listar(@NotNull Pageable pageable) {
         return unidadMedidaRepository.findAll(pageable).map(unidadMedidaMapper::toResponse);
@@ -45,7 +47,8 @@ public class UnidadMedidaService {
 
     @Transactional
     public UnidadMedidaResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid UnidadMedidaRequest request) {
-        UnidadMedida entity = buscar(id);
+        UnidadMedida entity = bloquear(id);
+        validarDisponibilidad(id, request.activo());
         String nombre = request.nombre().trim();
         validarNombre(nombre, id);
         unidadMedidaMapper.updateEntity(request, entity);
@@ -55,7 +58,8 @@ public class UnidadMedidaService {
 
     @Transactional
     public UnidadMedidaResponse cambiarEstado(@NotNull @Positive Long id, boolean activo) {
-        UnidadMedida entity = buscar(id);
+        UnidadMedida entity = bloquear(id);
+        validarDisponibilidad(id, activo);
         entity.setActivo(activo);
         return unidadMedidaMapper.toResponse(guardar(entity));
     }
@@ -72,6 +76,17 @@ public class UnidadMedidaService {
     private UnidadMedida buscar(Long id) {
         return unidadMedidaRepository.findById(id)
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la unidad de medida con ID " + id + "."));
+    }
+
+    private UnidadMedida bloquear(Long id) {
+        return unidadMedidaRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException("No existe la unidad de medida con ID " + id + "."));
+    }
+
+    private void validarDisponibilidad(Long id, boolean activo) {
+        if (!activo && productoRepository.existsByUnidadMedidaIdAndActivoTrue(id)) {
+            throw new ConflictoException("Hay productos activos que usan esta unidad de medida. Reasígnalos o desactívalos primero.");
+        }
     }
 
     private UnidadMedida guardar(UnidadMedida entity) {

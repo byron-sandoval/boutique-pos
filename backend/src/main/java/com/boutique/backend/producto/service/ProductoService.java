@@ -40,8 +40,15 @@ public class ProductoService {
     }
 
     public Page<ProductoResponse> listarPorCategoria(@NotNull @Positive Long categoriaId, @NotNull Pageable pageable) {
-        buscarCategoria(categoriaId);
+        buscarCategoria(categoriaId, false);
         return productoRepository.findByCategoriaId(categoriaId, pageable).map(productoMapper::toResponse);
+    }
+
+    public Page<ProductoResponse> buscar(String busqueda, Long categoriaId, Pageable pageable) {
+        if (categoriaId != null) {
+            buscarCategoria(categoriaId, false);
+        }
+        return productoRepository.buscar(busqueda, categoriaId, pageable).map(productoMapper::toResponse);
     }
 
     public ProductoResponse obtenerPorId(@NotNull @Positive Long id) {
@@ -55,8 +62,10 @@ public class ProductoService {
 
     @Transactional
     public ProductoResponse crear(@NotNull @Valid ProductoRequest request, MultipartFile imagen) {
-        Categoria categoria = buscarCategoria(request.categoriaId());
-        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId());
+        boolean activo = request.activo();
+        Categoria categoria = buscarCategoria(request.categoriaId(), activo);
+        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId(), activo);
+        if (activo) validarReferenciasActivas(categoria, unidad);
         String codigo = request.codigo().trim();
         validarCodigo(codigo, null);
         Producto entity = productoMapper.toEntity(request, categoria, unidad);
@@ -79,8 +88,10 @@ public class ProductoService {
 
     private ProductoResponse actualizar(Long id, ProductoRequest request, MultipartFile imagen, boolean conservarImagen) {
         Producto entity = bloquearProducto(id);
-        Categoria categoria = buscarCategoria(request.categoriaId());
-        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId());
+        boolean activo = request.activo();
+        Categoria categoria = buscarCategoria(request.categoriaId(), activo);
+        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId(), activo);
+        if (activo) validarReferenciasActivas(categoria, unidad);
         String codigo = request.codigo().trim();
         validarCodigo(codigo, id);
         String imagenUrl = entity.getImagenUrl();
@@ -99,6 +110,11 @@ public class ProductoService {
     @Transactional
     public ProductoResponse cambiarEstado(@NotNull @Positive Long id, boolean activo) {
         Producto entity = bloquearProducto(id);
+        if (activo) {
+            Categoria categoria = buscarCategoria(entity.getCategoria().getId(), true);
+            UnidadMedida unidad = buscarUnidad(entity.getUnidadMedida().getId(), true);
+            validarReferenciasActivas(categoria, unidad);
+        }
         entity.setActivo(activo);
         return productoMapper.toResponse(guardar(entity));
     }
@@ -125,13 +141,22 @@ public class ProductoService {
         return new RecursoNoEncontradoException("No existe el producto con ID " + id + ".");
     }
 
-    private Categoria buscarCategoria(Long id) {
-        return categoriaRepository.findById(id)
+    private void validarReferenciasActivas(Categoria categoria, UnidadMedida unidad) {
+        if (!Boolean.TRUE.equals(categoria.getActivo())) {
+            throw new ConflictoException("El producto necesita una categoría activa.");
+        }
+        if (!Boolean.TRUE.equals(unidad.getActivo())) {
+            throw new ConflictoException("El producto necesita una unidad de medida activa.");
+        }
+    }
+
+    private Categoria buscarCategoria(Long id, boolean bloquear) {
+        return (bloquear ? categoriaRepository.findByIdForUpdate(id) : categoriaRepository.findById(id))
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la categoria con ID " + id + "."));
     }
 
-    private UnidadMedida buscarUnidad(Long id) {
-        return unidadMedidaRepository.findById(id)
+    private UnidadMedida buscarUnidad(Long id, boolean bloquear) {
+        return (bloquear ? unidadMedidaRepository.findByIdForUpdate(id) : unidadMedidaRepository.findById(id))
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la unidad de medida con ID " + id + "."));
     }
 

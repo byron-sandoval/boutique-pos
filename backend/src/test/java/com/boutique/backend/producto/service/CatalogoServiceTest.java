@@ -55,8 +55,8 @@ class CatalogoServiceTest {
 
     @BeforeEach
     void setUp() {
-        categoriaService = new CategoriaService(categorias, new CategoriaMapper());
-        unidadService = new UnidadMedidaService(unidades, new UnidadMedidaMapper());
+        categoriaService = new CategoriaService(categorias, new CategoriaMapper(), productos);
+        unidadService = new UnidadMedidaService(unidades, new UnidadMedidaMapper(), productos);
         productoService = new ProductoService(productos, categorias, unidades, new ProductoMapper(), imagenes);
     }
 
@@ -73,7 +73,7 @@ class CatalogoServiceTest {
     @Test
     void actualizarCategoriaExcluyeSuPropioIdDeLaComprobacion() {
         Categoria categoria = categoria();
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
         when(categorias.saveAndFlush(categoria)).thenReturn(categoria);
 
         assertEquals(1L, categoriaService.actualizar(1L, new CategoriaRequest("Ropa", null, true)).id());
@@ -85,7 +85,7 @@ class CatalogoServiceTest {
     @Test
     void desactivarCategoriaConservaElRegistroYElNombre() {
         Categoria categoria = categoria();
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
         when(categorias.saveAndFlush(categoria)).thenReturn(categoria);
 
         var response = categoriaService.cambiarEstado(1L, false);
@@ -93,6 +93,51 @@ class CatalogoServiceTest {
         assertFalse(response.activo());
         assertEquals("Ropa", response.nombre());
         verify(categorias, never()).delete(any(Categoria.class));
+    }
+
+    @Test
+    void categoriaEnUsoPorProductosActivosNoSePuedeDesactivar() {
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(productos.existsByCategoriaIdAndActivoTrue(1L)).thenReturn(true);
+
+        assertThrows(ConflictoException.class, () -> categoriaService.cambiarEstado(1L, false));
+        assertThrows(ConflictoException.class,
+            () -> categoriaService.actualizar(1L, new CategoriaRequest("Ropa", null, false)));
+        verify(categorias, never()).saveAndFlush(any(Categoria.class));
+    }
+
+    @Test
+    void unidadEnUsoPorProductosActivosNoSePuedeDesactivar() {
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.existsByUnidadMedidaIdAndActivoTrue(2L)).thenReturn(true);
+
+        assertThrows(ConflictoException.class, () -> unidadService.cambiarEstado(2L, false));
+        assertThrows(ConflictoException.class,
+            () -> unidadService.actualizar(2L, new UnidadMedidaRequest("Unidad", "ud", false)));
+        verify(unidades, never()).saveAndFlush(any(UnidadMedida.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void activarProductoExigeSuCategoriaYSuUnidadActivas(boolean categoriaActiva) {
+        Categoria categoria = categoria();
+        categoria.setActivo(categoriaActiva);
+        UnidadMedida unidad = unidad();
+        unidad.setActivo(!categoriaActiva);
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setCategoria(categoria);
+        producto.setUnidadMedida(unidad);
+        producto.setActivo(false);
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
+
+        assertThrows(ConflictoException.class, () -> productoService.cambiarEstado(3L, true));
+        assertThrows(ConflictoException.class, () -> productoService.actualizar(3L, request("P-001")));
+        assertThrows(ConflictoException.class, () -> productoService.crear(request("P-001")));
+        assertFalse(producto.getActivo());
+        verify(productos, never()).saveAndFlush(any(Producto.class));
     }
 
     @Test
@@ -108,7 +153,7 @@ class CatalogoServiceTest {
     @Test
     void desactivarUnidadNoEliminaElRegistroYEsIdempotente() {
         UnidadMedida unidad = unidad();
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
         when(unidades.saveAndFlush(unidad)).thenReturn(unidad);
 
         unidadService.cambiarEstado(2L, false);
@@ -146,7 +191,7 @@ class CatalogoServiceTest {
     @Test
     void actualizarUnidadNoConsideraSuPropioNombreComoDuplicado() {
         UnidadMedida unidad = unidad();
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
         when(unidades.saveAndFlush(unidad)).thenReturn(unidad);
 
         assertEquals(2L, unidadService.actualizar(2L, new UnidadMedidaRequest("Unidad", "ud", true)).id());
@@ -157,7 +202,7 @@ class CatalogoServiceTest {
 
     @Test
     void productoNoSeGuardaSiSuCategoriaNoExiste() {
-        when(categorias.findById(1L)).thenReturn(Optional.empty());
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class, () -> productoService.crear(request("P-001")));
 
@@ -166,8 +211,8 @@ class CatalogoServiceTest {
 
     @Test
     void productoNoSeGuardaSiSuUnidadNoExiste() {
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.empty());
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class, () -> productoService.crear(request("P-001")));
 
@@ -176,8 +221,8 @@ class CatalogoServiceTest {
 
     @Test
     void rechazaCodigoDeProductoDuplicadoConEspacios() {
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(productos.existsByCodigo("P-001")).thenReturn(true);
 
         assertThrows(ConflictoException.class, () -> productoService.crear(request(" P-001 ")));
@@ -191,8 +236,8 @@ class CatalogoServiceTest {
         producto.setId(3L);
         producto.setNombre("Nombre original");
         when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(productos.existsByCodigoAndIdNot("P-002", 3L)).thenReturn(true);
 
         assertThrows(ConflictoException.class, () -> productoService.actualizar(3L, request("P-002")));
@@ -207,8 +252,8 @@ class CatalogoServiceTest {
         producto.setId(3L);
         producto.setImagenUrl("https://example.com/foto.png");
         when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(productos.saveAndFlush(producto)).thenReturn(producto);
 
         var actualizado = productoService.actualizar(3L, request("P-001"), null);
@@ -224,8 +269,8 @@ class CatalogoServiceTest {
         producto.setImagenUrl("https://example.com/anterior.png");
         var archivo = new MockMultipartFile("imagen", "nueva.png", "image/png", new byte[] {1});
         when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(imagenes.subirProducto(archivo, "https://example.com/anterior.png")).thenReturn("https://example.com/nueva.png");
         when(productos.saveAndFlush(producto)).thenReturn(producto);
 
