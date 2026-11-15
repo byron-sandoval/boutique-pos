@@ -1,3 +1,47 @@
+.business-dialog.product-form-dialog {
+  width: min(680px, calc(100vw - 24px));
+}
+
+.product-form-dialog .business-dialog-heading {
+  padding-block: 16px 12px;
+}
+
+.product-form-dialog .business-dialog-heading p {
+  margin-top: 4px;
+}
+
+.product-form-dialog .business-form {
+  padding-bottom: 16px;
+}
+
+.product-form-dialog .business-form fieldset {
+  margin-block: 14px;
+}
+
+.product-form-dialog .business-form legend {
+  margin-bottom: 8px;
+}
+
+.product-form-dialog .business-fields {
+  gap: 10px 14px;
+}
+
+.product-form-dialog .business-fields label {
+  gap: 4px;
+}
+
+.business-dialog.product-form-dialog :is(input:not([type='checkbox']), select, textarea) {
+  padding-block: 7px;
+}
+
+.business-dialog.product-form-dialog textarea {
+  min-height: 50px;
+}
+
+.product-form-dialog .business-form-actions {
+  padding-top: 12px;
+}
+
 .product-upload {
   display: grid;
   gap: 10px;

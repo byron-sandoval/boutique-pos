@@ -18,7 +18,7 @@ type ClientOptions = {
 export function createApiClient({ baseUrl, getToken, onUnauthorized, fetcher = fetch }: ClientOptions) {
   const base = new URL(baseUrl.replace(/\/+$/, '') + '/')
 
-  return async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return async function request<T>(path: string, { readConflictDetail, ...options }: RequestInit & { readConflictDetail?: boolean } = {}): Promise<T> {
     // Solo rutas dentro de esta API; evita enviar tokens a otras URLs.
     const url = new URL(path, base)
     if (!path || url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) {
@@ -47,6 +47,10 @@ export function createApiClient({ baseUrl, getToken, onUnauthorized, fetcher = f
       throw new ApiError(403, 'No tienes permiso para esta operación. Tu usuario y su sucursal también deben estar activos en el sistema.')
     }
     if (!response.ok) {
+      if (response.status === 409 && readConflictDetail && response.headers.get('Content-Type')?.startsWith('application/problem+json')) {
+        const problem = await response.json().catch(() => null)
+        if (typeof problem?.detail === 'string' && problem.detail.trim()) throw new ApiError(409, problem.detail)
+      }
       throw new ApiError(response.status, `No se pudo completar la solicitud (${response.status}).`)
     }
     if (response.status === 204) return undefined as T

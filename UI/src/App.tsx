@@ -8,6 +8,8 @@ import { EmpresaPage } from './features/empresa/EmpresaPage'
 import { SucursalesPage } from './features/empresa/SucursalesPage'
 import { MonedasPage } from './features/monedas/MonedasPage'
 import { ProductosPage } from './features/productos/ProductosPage'
+import { VariantesPage } from './features/productos/VariantesPage'
+import { UnidadesMedidaPage } from './features/productos/UnidadesMedidaPage'
 import { empresaService } from './features/empresa/data'
 import { useRemote } from './features/empresa/hooks'
 import { Button } from './components/ui/button'
@@ -60,6 +62,8 @@ function PanelAutenticado({ session }: { session: Session }) {
       : path === '/configuracion/monedas' ? <MonedasPage />
       : path === '/productos' ? <ProductosPage puedeEditar={session.roles.includes('ADMIN')} />
       : path === '/productos/categorias' ? <Categorias puedeEditar={session.roles.includes('ADMIN')} />
+      : path === '/productos/variantes' ? <VariantesPage puedeEditar={session.roles.includes('ADMIN')} />
+      : path === '/productos/unidades' ? <UnidadesMedidaPage puedeEditar={session.roles.includes('ADMIN')} />
       : <ModulePlaceholder title={page.label} />}
   </PanelLayout>
 }

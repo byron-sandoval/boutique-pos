@@ -46,5 +46,5 @@ export function useSave() {
       setBusy(false)
     }
   }
-  return { busy, error, save }
+  return { busy, error, save, clearError: () => setError('') }
 }

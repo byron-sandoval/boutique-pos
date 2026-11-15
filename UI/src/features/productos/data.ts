@@ -21,32 +21,106 @@ export type Producto = {
 }
 
 type ProductoRequest = Omit<Producto, 'id' | 'imagenUrl'>
+export type ProductoReferencia = Pick<Producto, 'id' | 'nombre' | 'codigo' | 'activo'>
+export type VarianteProducto = {
+  id: number
+  productoId: number
+  sku: string
+  talla: string | null
+  color: string | null
+  codigoBarras: string | null
+  activo: boolean
+}
+type VarianteRequest = Omit<VarianteProducto, 'id'>
+export type FilaVarianteLote = Omit<VarianteRequest, 'productoId' | 'activo'>
 export type RecursoReferencia = 'categorias' | 'unidades-medida'
 
-async function listarReferencias<T extends Referencia>(recurso: RecursoReferencia, signal: AbortSignal) {
+async function listarPaginas<T>(cargarPagina: (pagina: number) => Promise<Page<T>>, signal?: AbortSignal) {
   const referencias: T[] = []
   let totalPages = 1
   for (let pagina = 0; pagina < totalPages; pagina++) {
-    signal.throwIfAborted()
-    const respuesta = await api<Page<T>>(`${recurso}?page=${pagina}&size=100&sort=nombre,asc&sort=id,asc`, { signal })
+    signal?.throwIfAborted()
+    const respuesta = await cargarPagina(pagina)
     referencias.push(...respuesta.content)
     totalPages = respuesta.page.totalPages
   }
   return referencias
 }
 
+function listarReferencias<T extends Referencia>(recurso: RecursoReferencia | 'productos', signal: AbortSignal) {
+  return listarPaginas(pagina => api<Page<T>>(`${recurso}?page=${pagina}&size=100&sort=nombre,asc&sort=id,asc`, { signal }), signal)
+}
+
 export async function cargarReferencias(signal: AbortSignal): Promise<ReferenciasProducto> {
   const [categorias, unidades] = await Promise.all([
     listarReferencias<Referencia>('categorias', signal),
-    listarReferencias<Unidad>('unidades-medida', signal),
+    listarUnidades(signal),
   ])
   return { categorias, unidades }
 }
 
-export function listarProductos(pagina: number, categoriaId: string, signal: AbortSignal) {
-  const params = new URLSearchParams({ page: String(pagina), size: '20', sort: 'id,desc' })
-  if (categoriaId) params.set('categoriaId', categoriaId)
-  return api<Page<Producto>>(`productos?${params}`, { signal })
+export function listarUnidades(signal: AbortSignal) {
+  return listarReferencias<Unidad>('unidades-medida', signal)
+}
+
+export function guardarUnidad(datos: Omit<Unidad, 'id'>, id?: number) {
+  return api<Unidad>(id === undefined ? 'unidades-medida' : `unidades-medida/${id}`, {
+    method: id === undefined ? 'POST' : 'PUT',
+    body: JSON.stringify(datos),
+    readConflictDetail: true,
+  })
+}
+
+export function cambiarEstadoUnidad(unidad: Unidad) {
+  return api<Unidad>(`unidades-medida/${unidad.id}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ activo: !unidad.activo }),
+    readConflictDetail: true,
+  })
+}
+
+export type FiltroProductos = { categoriaId: string; busqueda: string }
+
+export function listarProductos({ categoriaId, busqueda }: FiltroProductos, signal: AbortSignal) {
+  return listarPaginas(pagina => {
+    const params = new URLSearchParams({ page: String(pagina), size: '100', sort: 'id,desc' })
+    if (categoriaId) params.set('categoriaId', categoriaId)
+    if (busqueda) params.set('busqueda', busqueda)
+    return api<Page<Producto>>(`productos?${params}`, { signal })
+  }, signal)
+}
+export function listarProductosReferencia(signal: AbortSignal) {
+  return listarReferencias<ProductoReferencia>('productos', signal)
+}
+
+export function listarVariantes(productoId: string, signal: AbortSignal) {
+  return listarPaginas(pagina => {
+    const params = new URLSearchParams({ page: String(pagina), size: '100', sort: 'id,desc' })
+    if (productoId) params.set('productoId', productoId)
+    return api<Page<VarianteProducto>>(`variantes-producto?${params}`, { signal })
+  }, signal)
+}
+
+export function guardarVariante(datos: VarianteRequest, id?: number) {
+  return api<VarianteProducto>(id === undefined ? 'variantes-producto' : `variantes-producto/${id}`, {
+    method: id === undefined ? 'POST' : 'PUT',
+    body: JSON.stringify(datos),
+  })
+}
+
+export function guardarLoteVariantes(productoId: number, variantes: FilaVarianteLote[]) {
+  return api<VarianteProducto[]>('variantes-producto/lote', {
+    method: 'POST',
+    body: JSON.stringify({ productoId, variantes }),
+    readConflictDetail: true,
+  })
+}
+
+export function cambiarEstadoVariante(variante: VarianteProducto) {
+  return api<VarianteProducto>(`variantes-producto/${variante.id}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ activo: !variante.activo }),
+  })
 }
 
 export function guardarProducto(datos: ProductoRequest, imagen?: File, id?: number) {
@@ -56,6 +130,7 @@ export function guardarProducto(datos: ProductoRequest, imagen?: File, id?: numb
   return api<Producto>(id === undefined ? 'productos' : `productos/${id}`, {
     method: id === undefined ? 'POST' : 'PUT',
     body,
+    readConflictDetail: true,
   })
 }
 
@@ -63,10 +138,11 @@ export function cambiarEstadoProducto(producto: Producto) {
   return api<Producto>(`productos/${producto.id}/estado`, {
     method: 'PATCH',
     body: JSON.stringify({ activo: !producto.activo }),
+    readConflictDetail: true,
   })
 }
 
 export function crearReferencia(recurso: RecursoReferencia, nombre: string, simbolo: string | null) {
-  const datos = recurso === 'categorias' ? { nombre, activo: true } : { nombre, simbolo, activo: true }
-  return api<Referencia>(recurso, { method: 'POST', body: JSON.stringify(datos) })
+  if (recurso === 'unidades-medida') return guardarUnidad({ nombre, simbolo, activo: true })
+  return api<Referencia>(recurso, { method: 'POST', body: JSON.stringify({ nombre, activo: true }) })
 }

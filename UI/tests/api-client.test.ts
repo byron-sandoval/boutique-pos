@@ -67,6 +67,22 @@ test('403 informa falta de permiso sin cerrar una sesión válida', async () => 
   await assert.rejects(api('usuarios'), error => error instanceof ApiError && error.status === 403)
 })
 
+test('lee el detalle de conflictos únicamente cuando la petición lo solicita', async () => {
+  const detail = 'Variante CAM-ROJO. Ya existe una variante con ese SKU.'
+  const api = createApiClient({
+    baseUrl: 'http://localhost:8080/api',
+    getToken: async () => 'token',
+    onUnauthorized: () => assert.fail('409 no debe cerrar sesión'),
+    fetcher: async () => Response.json({ detail }, {
+      status: 409,
+      headers: { 'Content-Type': 'application/problem+json' },
+    }),
+  })
+
+  await assert.rejects(api('variantes-producto/lote', { readConflictDetail: true }), { message: detail })
+  await assert.rejects(api('variantes-producto'), { message: 'No se pudo completar la solicitud (409).' })
+})
+
 test('respuestas 204 se aceptan sin intentar leer JSON', async () => {
   const api = createApiClient({
     baseUrl: 'http://localhost:8080/api',

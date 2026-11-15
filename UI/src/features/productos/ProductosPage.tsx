@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Barcode, CheckCircle2, Coins, Eye, Layers3, Package, Pencil, Plus, Power, Ruler, ShoppingBag, Tag, Text } from 'lucide-react'
+import { Barcode, Banknote, Coins, Download, Eye, Layers3, Package, Pencil, Plus, Power, Ruler, Search, ShoppingBag, Tag, Text } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,14 +10,18 @@ import { useFlashMessage } from '@/lib/use-flash-message'
 import { cambiarEstadoProducto, cargarReferencias, crearReferencia, listarProductos } from './data'
 import type { Producto, RecursoReferencia } from './data'
 import { ProductoForm } from './ProductoForm'
+import { PaginacionCatalogo } from './PaginacionCatalogo'
 import '@/features/empresa/empresa.css'
 import './producto-detalle.css'
 
 const cordobas = new Intl.NumberFormat('es-NI', { style: 'currency', currency: 'NIO', currencyDisplay: 'narrowSymbol' })
+const productosPorPagina = 12
 
 export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
-  const [filtro, setFiltro] = useState({ pagina: 0, categoriaId: '' })
-  const cargar = useCallback((signal: AbortSignal) => listarProductos(filtro.pagina, filtro.categoriaId, signal), [filtro])
+  const [busqueda, setBusqueda] = useState('')
+  const [filtro, setFiltro] = useState({ categoriaId: '', busqueda: '' })
+  const [indicePagina, setIndicePagina] = useState(0)
+  const cargar = useCallback((signal: AbortSignal) => listarProductos(filtro, signal), [filtro])
   const { result, reload } = useRemote(cargar)
   const { result: referenciasResult, reload: reloadReferencias } = useRemote(cargarReferencias)
   const [editor, setEditor] = useState<{ producto: Producto | null } | null>(null)
@@ -25,12 +29,43 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
   const [estado, setEstado] = useState<Producto | null>(null)
   const [nuevaReferencia, setNuevaReferencia] = useState<RecursoReferencia | null>(null)
   const [success, setSuccess] = useFlashMessage()
+  const [exportando, setExportando] = useState(false)
+  const [errorExportacion, setErrorExportacion] = useState('')
   const referencias = referenciasResult.status === 'ready' ? referenciasResult.data : null
-  const pagina = result.status === 'ready' ? result.data : null
+  const productos = result.status === 'ready' ? result.data : null
+  const totalProductos = productos?.length ?? 0
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina)
+  const pagina = Math.max(0, Math.min(indicePagina, totalPaginas - 1))
+  const inicioPagina = pagina * productosPorPagina
   const hayCategoriasActivas = referencias?.categorias.some(categoria => categoria.activo) ?? false
-  const puedeCrear = hayCategoriasActivas && Boolean(referencias?.unidades.length)
+  const hayUnidadesActivas = referencias?.unidades.some(unidad => unidad.activo) ?? false
+  const puedeCrear = hayCategoriasActivas && hayUnidadesActivas
   const categorias = new Map(referencias?.categorias.map(categoria => [categoria.id, categoria.nombre]))
   const unidades = new Map(referencias?.unidades.map(unidad => [unidad.id, unidad.simbolo || unidad.nombre]))
+
+  const textoBusqueda = busqueda.trim()
+  useEffect(() => {
+    if (textoBusqueda === filtro.busqueda) return
+    const espera = window.setTimeout(() => {
+      setIndicePagina(0)
+      setFiltro(actual => ({ ...actual, busqueda: textoBusqueda }))
+    }, 250)
+    return () => window.clearTimeout(espera)
+  }, [textoBusqueda, filtro.busqueda])
+
+  async function descargarExcel() {
+    if (!referencias || !productos?.length || exportando) return
+    setExportando(true)
+    setErrorExportacion('')
+    try {
+      const { exportarProductos } = await import('./exportar-productos')
+      await exportarProductos(productos, referencias)
+    } catch (error) {
+      setErrorExportacion(error instanceof Error ? error.message : 'No se pudo exportar el catálogo.')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   function abrirEditor(producto: Producto | null) {
     setSuccess('')
@@ -40,12 +75,16 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
   function productoGuardado(producto: Producto) {
     setSuccess(editor?.producto ? 'Producto actualizado.' : 'Producto registrado.')
     if (!editor?.producto) {
-      setFiltro({ pagina: 0, categoriaId: '' })
+      setBusqueda('')
+      setFiltro({ categoriaId: '', busqueda: '' })
+      setIndicePagina(0)
     } else if (filtro.categoriaId && filtro.categoriaId !== String(producto.categoriaId)) {
-      setFiltro({ pagina: 0, categoriaId: '' })
-    } else {
-      reload()
+      setFiltro(actual => ({ ...actual, categoriaId: '' }))
+      setIndicePagina(0)
+    } else if (filtro.busqueda) {
+      setIndicePagina(0)
     }
+    reload()
     setEditor(null)
   }
 
@@ -61,24 +100,41 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
           <div><h2>Catálogo de productos</h2><p>Organiza tus artículos por categoría.</p></div>
         </div>
         <div className="business-toolbar">
+          <label className="relative w-full sm:w-auto">
+            <Search size={15} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <input type="search" aria-label="Buscar producto por nombre o código" placeholder="Buscar producto" maxLength={100}
+              className="h-8 w-full rounded-lg border border-border bg-card pr-2.5 pl-8 text-sm sm:w-52"
+              value={busqueda} onChange={event => {
+                setErrorExportacion('')
+                setBusqueda(event.currentTarget.value)
+              }} />
+          </label>
           <select aria-label="Filtrar por categoría" className="h-8 rounded-lg border border-border bg-card px-2.5 text-sm"
             value={filtro.categoriaId} disabled={!referencias?.categorias.length}
-            onChange={event => setFiltro({ pagina: 0, categoriaId: event.currentTarget.value })}>
+            onChange={event => {
+              setErrorExportacion('')
+              setIndicePagina(0)
+              setFiltro({ categoriaId: event.currentTarget.value, busqueda: textoBusqueda })
+            }}>
             <option value="">Todas las categorías</option>
             {referencias?.categorias.map(categoria => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}
           </select>
+          <Button className="bg-[#016F3E] text-white hover:bg-[#005C33]"
+            disabled={exportando || !referencias || !totalProductos || textoBusqueda !== filtro.busqueda}
+            onClick={() => void descargarExcel()}><Download size={16} aria-hidden="true" />{exportando ? 'Exportando…' : 'Exportar a Excel'}</Button>
           {puedeEditar && <Button disabled={!puedeCrear} onClick={() => abrirEditor(null)}><Plus size={16} />Nuevo producto</Button>}
         </div>
       </div>
+      {errorExportacion && <p className="notice error" role="alert">{errorExportacion}</p>}
       {referenciasResult.status === 'error' && <div>
         <p className="notice error" role="alert">No se pudieron cargar las categorías y unidades. {referenciasResult.message}</p>
         <Button variant="outline" onClick={reloadReferencias}>Reintentar categorías y unidades</Button>
       </div>}
       {puedeEditar && referencias && !puedeCrear && <div className="notice">
-        <p>Para crear productos necesitas una categoría activa y una unidad de medida.</p>
+        <p>Para crear productos necesitas una categoría y una unidad de medida activas.</p>
         <div className="business-toolbar mt-2">
           {!hayCategoriasActivas && <Button variant="outline" onClick={() => { setSuccess(''); setNuevaReferencia('categorias') }}>Nueva categoría</Button>}
-          {!referencias.unidades.length && <Button variant="outline" onClick={() => { setSuccess(''); setNuevaReferencia('unidades-medida') }}>Nueva unidad de medida</Button>}
+          {!hayUnidadesActivas && <Button variant="outline" onClick={() => { setSuccess(''); setNuevaReferencia('unidades-medida') }}>Nueva unidad de medida</Button>}
         </div>
       </div>}
       {result.status === 'loading' && <p role="status">Cargando productos…</p>}
@@ -86,8 +142,8 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
         <p className="notice error" role="alert">{result.message}</p>
         <Button variant="outline" onClick={reload}>Reintentar productos</Button>
       </div>}
-      {pagina && (pagina.content.length === 0
-        ? <p>{filtro.categoriaId ? 'No hay productos en esta categoría.' : 'No hay productos en esta página.'}</p>
+      {productos && (totalProductos === 0
+        ? <p>{filtro.busqueda ? 'No se encontraron productos con esta búsqueda.' : filtro.categoriaId ? 'No hay productos en esta categoría.' : 'No hay productos en esta página.'}</p>
         : <div className="business-table-scroll" role="region" aria-label="Catálogo de productos" tabIndex={0}>
           <table className="business-table">
             <thead><tr>
@@ -95,7 +151,7 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
               <th scope="col">Unidad</th><th scope="col">Precio</th><th scope="col">Estado</th>
               <th scope="col">Acciones</th>
             </tr></thead>
-            <tbody>{pagina.content.map(producto => <tr key={producto.id}>
+            <tbody>{productos.slice(inicioPagina, inicioPagina + productosPorPagina).map(producto => <tr key={producto.id}>
               <td>{producto.codigo}</td>
               <th scope="row">
                 <div className="business-table-name">
@@ -129,15 +185,7 @@ export function ProductosPage({ puedeEditar }: { puedeEditar: boolean }) {
           </table>
         </div>
       )}
-      {pagina && (pagina.page.totalPages > 1 || filtro.pagina > 0) && <div className="pagination">
-        <span>{pagina.page.totalElements} productos · Página {filtro.pagina + 1} de {Math.max(1, pagina.page.totalPages)}</span>
-        <div>
-          <Button variant="outline" disabled={filtro.pagina === 0}
-            onClick={() => setFiltro(actual => ({ ...actual, pagina: actual.pagina - 1 }))}>Anterior</Button>
-          <Button variant="outline" disabled={filtro.pagina + 1 >= pagina.page.totalPages}
-            onClick={() => setFiltro(actual => ({ ...actual, pagina: actual.pagina + 1 }))}>Siguiente</Button>
-        </div>
-      </div>}
+      <PaginacionCatalogo total={totalProductos} pagina={pagina} totalPaginas={totalPaginas} registros="productos" onChange={setIndicePagina} />
     </Card>
     {detalle && <ProductoDetalleDialog producto={detalle}
       categoria={categorias.get(detalle.categoriaId) ?? String(detalle.categoriaId)}
@@ -190,9 +238,8 @@ function ProductoDetalleDialog({ producto, categoria, unidad, mostrarCostos, onC
           <DetalleDato icono={Layers3} nombre="Categoría">{categoria}</DetalleDato>
           <DetalleDato icono={Ruler} nombre="Unidad de medida">{unidad}</DetalleDato>
           <DetalleDato icono={Tag} nombre="Marca">{producto.marca || 'Sin registrar'}</DetalleDato>
-          <DetalleDato icono={Tag} nombre="Precio de venta"><strong className="product-detail-price">{cordobas.format(producto.precio)}</strong></DetalleDato>
+          <DetalleDato icono={Banknote} nombre="Precio de venta"><strong className="product-detail-price">{cordobas.format(producto.precio)}</strong></DetalleDato>
           {mostrarCostos && <DetalleDato icono={Coins} nombre="Costo">{cordobas.format(producto.costo)}</DetalleDato>}
-          <DetalleDato icono={CheckCircle2} nombre="Estado">{estado}</DetalleDato>
           <DetalleDato icono={Text} nombre="Descripción">{producto.descripcion || 'Sin descripción'}</DetalleDato>
         </dl>
       </section>

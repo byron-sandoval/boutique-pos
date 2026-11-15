@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useSave } from '@/features/empresa/hooks'
 import { RecordDialog } from '@/features/empresa/RecordDialog'
 import { guardarProducto } from './data'
-import type { Producto, Referencia, ReferenciasProducto, Unidad } from './data'
+import type { Producto, Referencia, ReferenciasProducto } from './data'
 import './producto-form.css'
 
 const formatos = ['image/png', 'image/jpeg', 'image/webp']
@@ -40,9 +40,8 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
   const [seleccion, setSeleccion] = useState<{ archivo: File; url: string } | null>(null)
   const [errorImagen, setErrorImagen] = useState('')
   const vistaPrevia = seleccion?.url ?? producto?.imagenUrl
-  const categoriasDisponibles = producto
-    ? referencias.categorias
-    : referencias.categorias.filter(categoria => categoria.activo)
+  const categoriasDisponibles = referencias.categorias.filter(categoria => categoria.activo || categoria.id === producto?.categoriaId)
+  const unidadesDisponibles = referencias.unidades.filter(unidad => unidad.activo || unidad.id === producto?.unidadMedidaId)
 
   useEffect(() => {
     if (seleccion) return () => URL.revokeObjectURL(seleccion.url)
@@ -72,7 +71,7 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
     const categoriaId = Number(form.get('categoriaId'))
     const unidadMedidaId = Number(form.get('unidadMedidaId'))
     if (!categoriasDisponibles.some(categoria => categoria.id === categoriaId)
-      || !referencias.unidades.some(unidad => unidad.id === unidadMedidaId)) {
+      || !unidadesDisponibles.some(unidad => unidad.id === unidadMedidaId)) {
       throw new Error('Selecciona una categoría y una unidad de medida válidas.')
     }
     const imagen = seleccion?.archivo
@@ -102,11 +101,11 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
 
   return <RecordDialog title={producto ? 'Editar producto' : 'Nuevo producto'}
     description="Completa los datos del catálogo. El precio se registra en córdobas."
-    busy={busy} onClose={onClose}>
+    className="product-form-dialog" busy={busy} onClose={onClose}>
     <form className="business-form" onSubmit={event => {
       event.preventDefault()
       const form = new FormData(event.currentTarget)
-      if (!errorImagen) void save(() => guardar(form), onSaved, 'Revisa que el código del producto esté disponible.')
+      if (!errorImagen) void save(() => guardar(form), onSaved)
     }}>
       <fieldset disabled={busy}>
         <legend>Datos del producto</legend>
@@ -122,7 +121,7 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
           <label>Unidad de medida
             <select name="unidadMedidaId" required defaultValue={producto?.unidadMedidaId ?? ''}>
               <option value="" disabled>Selecciona una unidad</option>
-              {opciones(referencias.unidades.map((unidad: Unidad) => ({
+              {opciones(unidadesDisponibles.map(unidad => ({
                 ...unidad, nombre: unidad.simbolo ? `${unidad.nombre} (${unidad.simbolo})` : unidad.nombre,
               })))}
             </select>

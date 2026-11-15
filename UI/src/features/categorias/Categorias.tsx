@@ -127,8 +127,9 @@ function CategoriaForm({ categoria, onClose, onSaved }: DialogActions & { catego
         return api<Categoria>(categoria ? `categorias/${categoria.id}` : 'categorias', {
           method: categoria ? 'PUT' : 'POST',
           body: JSON.stringify({ nombre, descripcion, activo: categoria?.activo ?? true }),
+          readConflictDetail: true,
         })
-      }, onSaved, 'Ya existe una categoría con ese nombre.')
+      }, onSaved)
     }}>
       <fieldset disabled={busy}>
         <div className="business-fields">
@@ -162,6 +163,7 @@ function CategoriaEstadoDialog({ categoria, onClose, onSaved }: DialogActions & 
           onClick={() => void save(() => api(`categorias/${categoria.id}/estado`, {
             method: 'PATCH',
             body: JSON.stringify({ activo: !categoria.activo }),
+            readConflictDetail: true,
           }), onSaved)}>
           {busy ? 'Guardando…' : titulo}
         </Button>
