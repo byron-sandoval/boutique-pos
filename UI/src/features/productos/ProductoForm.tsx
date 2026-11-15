@@ -38,8 +38,10 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
   const { busy, error, save } = useSave()
   const entradaImagen = useRef<HTMLInputElement>(null)
   const [seleccion, setSeleccion] = useState<{ archivo: File; url: string } | null>(null)
+  const [quitarFotoActual, setQuitarFotoActual] = useState(false)
   const [errorImagen, setErrorImagen] = useState('')
-  const vistaPrevia = seleccion?.url ?? producto?.imagenUrl
+  const vistaPrevia = seleccion?.url ?? (quitarFotoActual ? null : producto?.imagenUrl)
+  const etiquetaQuitarFoto = seleccion ? 'Quitar foto seleccionada' : 'Quitar foto actual'
   const categoriasDisponibles = referencias.categorias.filter(categoria => categoria.activo || categoria.id === producto?.categoriaId)
   const unidadesDisponibles = referencias.unidades.filter(unidad => unidad.activo || unidad.id === producto?.unidadMedidaId)
 
@@ -87,7 +89,7 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
         costo: importe(form, 'costo', 'El costo'),
         ultimoCosto: producto?.ultimoCosto ?? null,
         activo: form.get('activo') === 'on',
-      }, imagen, producto?.id)
+      }, imagen, producto?.id, quitarFotoActual)
     } catch (error) {
       if (imagen && error instanceof ApiError && error.status === 503) {
         throw new Error('No se pudo subir la foto a Supabase. Intenta nuevamente.', { cause: error })
@@ -167,10 +169,13 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
             <span>{seleccion ? 'Vista previa' : 'Foto actual'}</span>
             <div className="product-upload-thumbnail">
               <img src={vistaPrevia} alt="Foto del producto" />
-              {seleccion && <Button type="button" variant="destructive" size="icon-xs"
-                title="Quitar foto seleccionada" aria-label="Quitar foto seleccionada" onClick={quitarSeleccion}>
+              <Button type="button" variant="destructive" size="icon-xs"
+                title={etiquetaQuitarFoto} aria-label={etiquetaQuitarFoto} onClick={() => {
+                  if (!seleccion) setQuitarFotoActual(true)
+                  quitarSeleccion()
+                }}>
                 <Trash2 size={13} aria-hidden="true" />
-              </Button>}
+              </Button>
             </div>
           </div>}
         </div>

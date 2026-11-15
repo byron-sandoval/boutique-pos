@@ -1,0 +1,136 @@
+.compra-page { container-type: inline-size; container-name: compra; }
+
+.compra-form {
+  display: grid;
+  gap: 16px;
+}
+
+.compra-form input,
+.compra-form select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--card-foreground);
+  font-size: 13px;
+}
+
+.compra-form :is(input, select):focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.compra-form input[readonly] { background: var(--muted); }
+.compra-form fieldset { min-width: 0; margin-top: 14px; }
+.compra-selector { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
+.compra-form .business-table { --compra-altura-campo: 36px; }
+.compra-form .business-table tbody :is(th, td) { vertical-align: top; }
+.compra-form .business-table input { display: block; min-width: 6rem; height: var(--compra-altura-campo); }
+.compra-linea { display: flex; align-items: center; min-height: var(--compra-altura-campo); }
+.compra-mercaderia-scroll { max-height: min(24rem, 50dvh); overflow-y: auto; scroll-padding-block-start: 2.75rem; }
+.compra-mercaderia-scroll thead th { position: sticky; top: 0; z-index: 1; }
+.compra-total { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.compra-total strong { margin-left: 8px; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+.compra-detalle-dialog {
+  --compra-detalle-acento: color-mix(in srgb, var(--primary) 82%, var(--panel-text));
+  --compra-detalle-fondo: color-mix(in srgb, var(--primary) 12%, var(--card));
+  width: min(920px, calc(100vw - 24px));
+}
+
+.compra-detalle-dialog .business-dialog-heading {
+  align-items: flex-start;
+  background:
+    radial-gradient(ellipse at 92% 150%, #a252813d 0 38%, transparent 38.5%),
+    radial-gradient(ellipse at 85% -40%, #c579a42b 0 32%, transparent 32.5%),
+    linear-gradient(105deg, #402238, #713653 75%, #502840);
+  color: #fff;
+}
+
+.compra-detalle-dialog .business-dialog-heading h2 { font-size: clamp(17px, 2.8vw, 23px); line-height: 1.2; }
+.compra-detalle-dialog .business-dialog-heading p { margin-top: 3px; color: #fae8f3; overflow-wrap: anywhere; }
+.compra-detalle-dialog .business-dialog-heading button { color: inherit; }
+.compra-detalle-dialog .business-dialog-heading button:hover { background: #ffffff24; }
+
+.compra-detalle-icono {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--compra-detalle-acento);
+  background: var(--compra-detalle-fondo);
+}
+
+.compra-detalle-dialog .business-dialog-heading .compra-detalle-icono {
+  color: inherit;
+  background: #ffffff26;
+}
+
+.compra-detalle-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+
+.compra-detalle-dato {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline-end: 16px;
+  border-inline-end: 1px solid var(--border);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.compra-detalle-dato span:not(.compra-detalle-icono) { display: block; color: var(--panel-text-secondary); font-size: 12px; }
+.compra-detalle-dato strong { display: block; margin-top: 2px; }
+.compra-detalle-resumen .business-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; }
+.compra-detalle-productos { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 16px; font-weight: 650; }
+.compra-detalle-productos svg { color: var(--compra-detalle-acento); }
+.compra-detalle-cuerpo .business-table-scroll { border: 1px solid var(--border); border-radius: 9px; }
+.compra-detalle-cuerpo .business-table { min-width: 38rem; }
+.compra-detalle-cuerpo .business-table thead th { background: var(--compra-detalle-fondo); color: #000; }
+.dark .compra-detalle-cuerpo .business-table thead th { color: #fff; }
+.compra-detalle-cuerpo .business-table :is(th, td):not(:nth-child(2)) { text-align: center; }
+.compra-detalle-descripcion { min-width: 12rem; width: 30%; vertical-align: middle; line-height: 1.4; overflow-wrap: anywhere; white-space: pre-wrap; }
+.compra-detalle-variante { display: block; color: var(--panel-text-secondary); font-weight: 400; line-height: 1.4; }
+.compra-detalle-importe { display: inline-block; padding: 3px 10px; border-radius: 7px; color: var(--compra-detalle-acento); background: var(--compra-detalle-fondo); }
+
+.compra-detalle-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 16px 0 24px auto;
+  padding: 7px 14px;
+  border-radius: 10px;
+  color: var(--compra-detalle-acento);
+  background: var(--compra-detalle-fondo);
+}
+
+.compra-detalle-total span { display: flex; align-items: center; gap: 7px; font-weight: 650; }
+.compra-detalle-total strong { padding-inline-start: 12px; border-inline-start: 1px solid var(--border); font-size: 19px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+
+@container compra (min-width: 880px) {
+  .compra-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: start;
+  }
+
+  .compra-form .compra-datos { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .compra-selector { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+
+@media (max-width: 540px) {
+  .compra-detalle-resumen { column-gap: 12px; }
+  .compra-detalle-dato { padding-inline-end: 0; border-inline-end: 0; }
+}

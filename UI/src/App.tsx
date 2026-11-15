@@ -4,6 +4,8 @@ import { logout } from './auth/session'
 import type { Session } from './auth/session'
 import { useSession } from './auth/use-session'
 import { Categorias } from './features/categorias/Categorias'
+import { HistorialComprasPage } from './features/compras/HistorialComprasPage'
+import { RegistrarCompraPage } from './features/compras/RegistrarCompraPage'
 import { EmpresaPage } from './features/empresa/EmpresaPage'
 import { SucursalesPage } from './features/empresa/SucursalesPage'
 import { MonedasPage } from './features/monedas/MonedasPage'
@@ -64,6 +66,8 @@ function PanelAutenticado({ session }: { session: Session }) {
       : path === '/productos/categorias' ? <Categorias puedeEditar={session.roles.includes('ADMIN')} />
       : path === '/productos/variantes' ? <VariantesPage puedeEditar={session.roles.includes('ADMIN')} />
       : path === '/productos/unidades' ? <UnidadesMedidaPage puedeEditar={session.roles.includes('ADMIN')} />
+      : path === '/compras/nueva' ? <RegistrarCompraPage />
+      : path === '/compras' ? <HistorialComprasPage />
       : <ModulePlaceholder title={page.label} />}
   </PanelLayout>
 }

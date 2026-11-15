@@ -1,4 +1,5 @@
 import { api } from '@/api'
+import { listarPaginas } from '@/api/paginas'
 import type { Page } from '@/features/empresa/model'
 
 export type Referencia = { id: number; nombre: string; activo: boolean }
@@ -34,18 +35,6 @@ export type VarianteProducto = {
 type VarianteRequest = Omit<VarianteProducto, 'id'>
 export type FilaVarianteLote = Omit<VarianteRequest, 'productoId' | 'activo'>
 export type RecursoReferencia = 'categorias' | 'unidades-medida'
-
-async function listarPaginas<T>(cargarPagina: (pagina: number) => Promise<Page<T>>, signal?: AbortSignal) {
-  const referencias: T[] = []
-  let totalPages = 1
-  for (let pagina = 0; pagina < totalPages; pagina++) {
-    signal?.throwIfAborted()
-    const respuesta = await cargarPagina(pagina)
-    referencias.push(...respuesta.content)
-    totalPages = respuesta.page.totalPages
-  }
-  return referencias
-}
 
 function listarReferencias<T extends Referencia>(recurso: RecursoReferencia | 'productos', signal: AbortSignal) {
   return listarPaginas(pagina => api<Page<T>>(`${recurso}?page=${pagina}&size=100&sort=nombre,asc&sort=id,asc`, { signal }), signal)
@@ -123,7 +112,14 @@ export function cambiarEstadoVariante(variante: VarianteProducto) {
   })
 }
 
-export function guardarProducto(datos: ProductoRequest, imagen?: File, id?: number) {
+export function guardarProducto(datos: ProductoRequest, imagen?: File, id?: number, quitarImagen = false) {
+  if (id !== undefined && quitarImagen && !imagen) {
+    return api<Producto>(`productos/${id}?quitarImagen=true`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...datos, imagenUrl: null }),
+      readConflictDetail: true,
+    })
+  }
   const body = new FormData()
   body.set('producto', new Blob([JSON.stringify(datos)], { type: 'application/json' }))
   if (imagen) body.set('imagen', imagen)
