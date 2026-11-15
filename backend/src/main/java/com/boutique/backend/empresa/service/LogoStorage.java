@@ -72,6 +72,27 @@ public class LogoStorage {
         return subirImagen(imagen, urlAnterior, "productos");
     }
 
+    public void eliminarProductoAlConfirmar(String urlImagen) {
+        URI objeto;
+        try {
+            objeto = objetoAdministrado(proyectoConfigurado(), "productos", urlImagen);
+        } catch (ServicioExternoException exception) {
+            log.warn("No se pudo programar la eliminación de la foto del producto en Supabase: {}", exception.getMessage());
+            return;
+        }
+        if (objeto == null) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    limpiar(objeto);
+                }
+            }
+        });
+    }
+
     private String subirImagen(MultipartFile imagen, String urlAnterior, String carpeta) {
         if (imagen.getSize() > MAX_BYTES) {
             throw new ResponseStatusException(HttpStatus.CONTENT_TOO_LARGE, "La imagen admite hasta 2 MB.");

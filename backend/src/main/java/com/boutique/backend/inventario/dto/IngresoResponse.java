@@ -14,6 +14,7 @@ public record IngresoResponse(
     BigDecimal total,
     String observaciones,
     Boolean activo,
-    List<DetalleIngresoResponse> detalles
+    List<DetalleIngresoResponse> detalles,
+    String registradoPor
 ) {
 }

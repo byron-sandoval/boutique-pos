@@ -31,12 +31,14 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -277,6 +279,23 @@ class CatalogoServiceTest {
         var actualizado = productoService.actualizar(3L, request("P-001"), archivo);
 
         assertEquals("https://example.com/nueva.png", actualizado.imagenUrl());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void quitaLaFotoYProgramaBorrarElArchivoSiNingunOtroProductoLoUsa(boolean compartida) {
+        String url = "https://example.com/foto.png";
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl(url);
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.existsByImagenUrlAndIdNot(url, 3L)).thenReturn(compartida);
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        assertNull(productoService.actualizarQuitandoImagen(3L, request("P-001")).imagenUrl());
+        verify(imagenes, times(compartida ? 0 : 1)).eliminarProductoAlConfirmar(url);
     }
 
     @ParameterizedTest

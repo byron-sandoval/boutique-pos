@@ -52,6 +52,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -156,6 +157,16 @@ class ProductoControllerTest {
         when(productos.actualizar(eq(1L), any(ProductoRequest.class), eq(imagen))).thenReturn(producto(true));
 
         mvc.perform(multipart(HttpMethod.PUT, "/api/productos/1").file(datos).file(imagen))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void permiteQuitarLaFotoAlGuardarLaEdicionDelProducto() throws Exception {
+        when(productos.actualizarQuitandoImagen(eq(1L), any(ProductoRequest.class))).thenReturn(producto(true));
+
+        mvc.perform(put("/api/productos/1").param("quitarImagen", "true")
+                .contentType(MediaType.APPLICATION_JSON).content(productoJson("10.00")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1));
     }

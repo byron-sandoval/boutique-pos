@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 
 public record IngresoRequest(
     @NotNull @Positive Long sucursalId,
-    @Positive Long proveedorId,
+    @NotNull @Positive Long proveedorId,
     @NotBlank @Size(max = 50) String noDocumento,
     @Size(max = 255) String observaciones,
     @NotEmpty @Size(max = 500) List<@NotNull @Valid DetalleIngresoRequest> detalles

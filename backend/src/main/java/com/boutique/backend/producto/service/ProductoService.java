@@ -78,15 +78,20 @@ public class ProductoService {
 
     @Transactional
     public ProductoResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request) {
-        return actualizar(id, request, null, false);
+        return actualizar(id, request, null, false, false);
+    }
+
+    @Transactional
+    public ProductoResponse actualizarQuitandoImagen(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request) {
+        return actualizar(id, request, null, false, true);
     }
 
     @Transactional
     public ProductoResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request, MultipartFile imagen) {
-        return actualizar(id, request, imagen, true);
+        return actualizar(id, request, imagen, true, false);
     }
 
-    private ProductoResponse actualizar(Long id, ProductoRequest request, MultipartFile imagen, boolean conservarImagen) {
+    private ProductoResponse actualizar(Long id, ProductoRequest request, MultipartFile imagen, boolean conservarImagen, boolean quitarImagen) {
         Producto entity = bloquearProducto(id);
         boolean activo = request.activo();
         Categoria categoria = buscarCategoria(request.categoriaId(), activo);
@@ -98,10 +103,15 @@ public class ProductoService {
         if (imagen != null) {
             boolean compartida = imagenUrl != null && productoRepository.existsByImagenUrlAndIdNot(imagenUrl, id);
             imagenUrl = imagenStorage.subirProducto(imagen, compartida ? null : imagenUrl);
+        } else if (quitarImagen) {
+            if (imagenUrl != null && !productoRepository.existsByImagenUrlAndIdNot(imagenUrl, id)) {
+                imagenStorage.eliminarProductoAlConfirmar(imagenUrl);
+            }
+            imagenUrl = null;
         }
         productoMapper.updateEntity(request, categoria, unidad, entity);
         entity.setCodigo(codigo);
-        if (conservarImagen) {
+        if (conservarImagen || quitarImagen) {
             entity.setImagenUrl(imagenUrl);
         }
         return productoMapper.toResponse(guardar(entity));

@@ -15,6 +15,7 @@ import com.boutique.backend.inventario.dto.DetalleIngresoRequest;
 import com.boutique.backend.inventario.dto.IngresoRequest;
 import com.boutique.backend.inventario.dto.IngresoResponse;
 import com.boutique.backend.inventario.dto.IngresoResumenResponse;
+import com.boutique.backend.inventario.dto.SucursalIngresoResponse;
 import com.boutique.backend.inventario.entity.DetalleIngreso;
 import com.boutique.backend.inventario.entity.Ingreso;
 import com.boutique.backend.inventario.mapper.DetalleIngresoMapper;
@@ -41,6 +42,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 @Service
@@ -60,6 +62,16 @@ public class IngresoService {
     private final IngresoMapper ingresoMapper;
     private final DetalleIngresoMapper detalleMapper;
     private final StockService stockService;
+
+    public SucursalIngresoResponse sucursalActual() {
+        Sucursal sucursal = usuarioActual().getSucursal();
+        return new SucursalIngresoResponse(sucursal.getId(), sucursal.getNombre(), sucursal.getActiva());
+    }
+
+    public BigDecimal ultimoCosto(@NotNull @Positive Long varianteId) {
+        Long sucursalId = usuarioActual().getSucursal().getId();
+        return detalleRepository.buscarUltimoCosto(varianteId, sucursalId).orElse(null);
+    }
 
     public Page<IngresoResumenResponse> listar(@Positive Long sucursalId, @NotNull Pageable pageable) {
         Page<Ingreso> pagina = sucursalId == null ? ingresoRepository.findAll(pageable)
@@ -167,9 +179,6 @@ public class IngresoService {
     }
 
     private Proveedor buscarProveedor(Long id) {
-        if (id == null) {
-            return null;
-        }
         Proveedor proveedor = proveedorRepository.findById(id)
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe el proveedor indicado."));
         if (!Boolean.TRUE.equals(proveedor.getActivo())) {
@@ -196,6 +205,17 @@ public class IngresoService {
     }
 
     private IngresoResponse respuesta(Ingreso ingreso, List<DetalleIngreso> detalles) {
-        return ingresoMapper.toResponse(ingreso, detalles.stream().map(detalleMapper::toResponse).toList());
+        return ingresoMapper.toResponse(ingreso, detalles.stream().map(detalleMapper::toResponse).toList(),
+            usernameDelAutor(ingreso.getUsuario()));
+    }
+
+    private String usernameDelAutor(Usuario autor) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof JwtAuthenticationToken jwt && jwt.isAuthenticated()
+            && autor.getKeycloakId() != null && autor.getKeycloakId().equals(jwt.getToken().getSubject())
+            && jwt.getToken().getClaims().get("preferred_username") instanceof String username && StringUtils.hasText(username)) {
+            return username;
+        }
+        return autor.getUsername();
     }
 }

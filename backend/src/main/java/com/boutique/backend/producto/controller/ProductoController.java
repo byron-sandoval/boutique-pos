@@ -79,8 +79,9 @@ public class ProductoController {
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ProductoResponse actualizar(@PathVariable @Positive Long id, @Valid @RequestBody ProductoRequest request) {
-        return productoService.actualizar(id, request);
+    public ProductoResponse actualizar(@PathVariable @Positive Long id, @Valid @RequestBody ProductoRequest request,
+        @RequestParam(name = "quitarImagen", defaultValue = "false") boolean quitarImagen) {
+        return quitarImagen ? productoService.actualizarQuitandoImagen(id, request) : productoService.actualizar(id, request);
     }
 
 

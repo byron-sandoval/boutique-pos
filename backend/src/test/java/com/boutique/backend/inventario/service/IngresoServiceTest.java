@@ -61,6 +61,7 @@ class IngresoServiceTest {
         sucursal.setId(1L);
         usuario = new Usuario();
         usuario.setId(8L);
+        usuario.setKeycloakId("keycloak-8");
         usuario.setSucursal(sucursal);
         variante = new VarianteProducto();
         variante.setId(4L);
@@ -83,8 +84,16 @@ class IngresoServiceTest {
         when(sucursales.findByIdForUpdate(1L)).thenReturn(Optional.of(sucursal));
     }
 
+    private void sucursalYProveedorActivos() {
+        sucursalActiva();
+        Proveedor proveedor = new Proveedor();
+        proveedor.setId(6L);
+        proveedor.setActivo(true);
+        when(proveedores.findById(6L)).thenReturn(Optional.of(proveedor));
+    }
+
     private IngresoRequest solicitud(DetalleIngresoRequest... lineas) {
-        return new IngresoRequest(1L, null, " FAC-1 ", null, List.of(lineas));
+        return new IngresoRequest(1L, 6L, " FAC-1 ", null, List.of(lineas));
     }
 
     private DetalleIngresoRequest linea(int cantidad, String costo) {
@@ -108,8 +117,61 @@ class IngresoServiceTest {
     }
 
     @Test
+    void consultaElUltimoCostoEnLaSucursalDelUsuario() {
+        autenticar();
+        BigDecimal costo = new BigDecimal("300.00");
+        when(detalles.buscarUltimoCosto(4L, 1L)).thenReturn(Optional.of(costo));
+
+        assertEquals(costo, service.ultimoCosto(4L));
+        assertNull(service.ultimoCosto(5L));
+        verifyNoInteractions(stock);
+    }
+
+    @Test
+    void muestraElUsernameDeLaSesionParaUnaCompraDelMismoUsuario() {
+        Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("keycloak-8")
+            .claim("preferred_username", "admin").build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        when(ingresos.findById(10L)).thenReturn(Optional.of(ingreso()));
+
+        assertEquals("admin", service.obtenerPorId(10L).registradoPor());
+    }
+
+    @Test
+    void muestraProductoSkuTallaYColorEnElDetalleDeLaCompra() {
+        Jwt jwt = Jwt.withTokenValue("prueba").header("alg", "RS256").subject("otro-usuario")
+            .claim("preferred_username", "admin").build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
+        Ingreso ingreso = ingreso();
+        usuario.setNombre("Ana");
+        usuario.setUsername("admin.ana");
+        variante.getProducto().setNombre("Camisa");
+        variante.setSku("CAM-M-AZUL");
+        variante.setTalla("M");
+        variante.setColor("Azul");
+        DetalleIngreso detalle = detalle(ingreso, 2);
+        detalle.setCostoUnitario(new BigDecimal("10.00"));
+        detalle.setMonto(new BigDecimal("20.00"));
+        when(ingresos.findById(10L)).thenReturn(Optional.of(ingreso));
+        when(detalles.findByIngresoIdOrderByIdAsc(10L)).thenReturn(List.of(detalle));
+
+        var compra = service.obtenerPorId(10L);
+        var respuesta = compra.detalles().getFirst();
+
+        assertEquals("admin.ana", compra.registradoPor());
+        assertEquals("Camisa", respuesta.producto());
+        assertEquals("CAM-M-AZUL", respuesta.sku());
+        assertEquals("M", respuesta.talla());
+        assertEquals("Azul", respuesta.color());
+        assertEquals(new BigDecimal("20.00"), respuesta.monto());
+        verifyNoInteractions(stock);
+    }
+
+    @Test
     void calculaImportesConDecimalesYAcumulaVariantesRepetidas() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
+        usuario.setNombre("Ana");
+        usuario.setUsername("admin.ana");
         when(variantes.findAllById(any())).thenReturn(List.of(variante));
         when(ingresos.save(any())).thenAnswer(inv -> {
             Ingreso ingreso = inv.getArgument(0);
@@ -123,10 +185,11 @@ class IngresoServiceTest {
         assertEquals(new BigDecimal("5.00"), response.total());
         assertEquals(new BigDecimal("0.30"), response.detalles().getFirst().monto());
         assertEquals(8L, response.usuarioId());
+        assertEquals("admin.ana", response.registradoPor());
         assertEquals("FAC-1", response.noDocumento());
-        assertNull(response.proveedorId());
+        assertEquals(6L, response.proveedorId());
         verify(stock).ingresar(4L, 1L, 5);
-        verify(ingresos).existsBySucursalIdAndProveedorIdAndNoDocumentoAndActivoTrue(1L, null, "FAC-1");
+        verify(ingresos).existsBySucursalIdAndProveedorIdAndNoDocumentoAndActivoTrue(1L, 6L, "FAC-1");
     }
 
     @Test
@@ -154,7 +217,7 @@ class IngresoServiceTest {
     @Test
     void noPermiteCrearEnOtraSucursal() {
         autenticar();
-        var request = new IngresoRequest(2L, null, "A", null, List.of(linea(1, "1.00")));
+        var request = new IngresoRequest(2L, 6L, "A", null, List.of(linea(1, "1.00")));
         assertThrows(AccessDeniedException.class, () -> service.crear(request));
         verifyNoInteractions(ingresos, sucursales, stock);
     }
@@ -169,8 +232,8 @@ class IngresoServiceTest {
 
     @Test
     void rechazaDocumentoDuplicadoAntesDeGuardar() {
-        sucursalActiva();
-        when(ingresos.existsBySucursalIdAndProveedorIdAndNoDocumentoAndActivoTrue(1L, null, "FAC-1"))
+        sucursalYProveedorActivos();
+        when(ingresos.existsBySucursalIdAndProveedorIdAndNoDocumentoAndActivoTrue(1L, 6L, "FAC-1"))
             .thenReturn(true);
         assertThrows(ConflictoException.class, () -> service.crear(solicitud(linea(1, "1.00"))));
         verify(ingresos, never()).save(any());
@@ -190,7 +253,7 @@ class IngresoServiceTest {
 
     @Test
     void rechazaVarianteInexistente() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
         when(variantes.findAllById(any())).thenReturn(List.of());
         assertThrows(RecursoNoEncontradoException.class, () -> service.crear(solicitud(linea(1, "1.00"))));
         verify(ingresos, never()).save(any());
@@ -199,7 +262,7 @@ class IngresoServiceTest {
 
     @Test
     void rechazaProductoInactivo() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
         variante.getProducto().setActivo(false);
         when(variantes.findAllById(any())).thenReturn(List.of(variante));
         assertThrows(ConflictoException.class, () -> service.crear(solicitud(linea(1, "1.00"))));
@@ -209,7 +272,7 @@ class IngresoServiceTest {
 
     @Test
     void rechazaDesbordamientoDelMontoDeUnaLinea() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
         assertThrows(ConflictoException.class, () -> service.crear(solicitud(linea(2, "9999999999.99"))));
         verify(ingresos, never()).save(any());
         verifyNoInteractions(stock, detalles);
@@ -217,7 +280,7 @@ class IngresoServiceTest {
 
     @Test
     void rechazaDesbordamientoDelTotalAunqueLasLineasSeanValidas() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
         assertThrows(ConflictoException.class, () -> service.crear(
             solicitud(linea(1, "6000000000.00"), linea(1, "6000000000.00"))));
         verify(ingresos, never()).save(any());
@@ -226,7 +289,7 @@ class IngresoServiceTest {
 
     @Test
     void rechazaDesbordamientoDeCantidadesRepetidas() {
-        sucursalActiva();
+        sucursalYProveedorActivos();
         assertThrows(ConflictoException.class, () -> service.crear(
             solicitud(linea(Integer.MAX_VALUE, "0.00"), linea(1, "0.00"))));
         verify(ingresos, never()).save(any());
