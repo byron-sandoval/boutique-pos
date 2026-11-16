@@ -27,7 +27,8 @@ export function VariantesPage({ puedeEditar }: { puedeEditar: boolean }) {
   const productos = productosResult.status === 'ready' ? productosResult.data : []
   const productosActivos = productos.filter(producto => producto.activo)
   const porId = new Map(productos.map(producto => [producto.id, producto]))
-  const variantes = result.status === 'ready' ? result.data : null
+  const variantes = result.status === 'ready'
+    ? [...result.data].sort((a, b) => Number(b.activo) - Number(a.activo)) : null
   const totalVariantes = variantes?.length ?? 0
   const totalPaginas = Math.ceil(totalVariantes / variantesPorPagina)
   const pagina = Math.max(0, Math.min(indicePagina, totalPaginas - 1))

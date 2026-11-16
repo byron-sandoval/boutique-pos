@@ -15,6 +15,8 @@ export function UnidadesMedidaPage({ puedeEditar }: { puedeEditar: boolean }) {
   const { result, reload } = useRemote(listarUnidades)
   const [dialogo, setDialogo] = useState<Dialogo | null>(null)
   const [success, setSuccess] = useFlashMessage()
+  const unidades = result.status === 'ready'
+    ? [...result.data].sort((a, b) => Number(b.activo) - Number(a.activo)) : null
 
   function abrir(next: Dialogo) {
     setSuccess('')
@@ -39,7 +41,7 @@ export function UnidadesMedidaPage({ puedeEditar }: { puedeEditar: boolean }) {
         <p className="notice error" role="alert">{result.message}</p>
         <Button variant="outline" onClick={reload}>Reintentar</Button>
       </div>}
-      {result.status === 'ready' && (result.data.length === 0
+      {unidades && (unidades.length === 0
         ? <p>Todavía no hay unidades de medida registradas.</p>
         : <div className="business-table-scroll" role="region" aria-label="Unidades del catálogo" tabIndex={0}>
           <table className="business-table">
@@ -47,7 +49,7 @@ export function UnidadesMedidaPage({ puedeEditar }: { puedeEditar: boolean }) {
               <th scope="col">Nombre</th><th scope="col">Símbolo</th><th scope="col">Estado</th>
               {puedeEditar && <th scope="col">Acciones</th>}
             </tr></thead>
-            <tbody>{result.data.map(unidad => <tr key={unidad.id}>
+            <tbody>{unidades.map(unidad => <tr key={unidad.id}>
               <th scope="row">{unidad.nombre}</th><td>{unidad.simbolo || '—'}</td>
               <td><span className={`business-status ${unidad.activo ? '' : 'is-inactive'}`}>{unidad.activo ? 'Activa' : 'Inactiva'}</span></td>
               {puedeEditar && <td><div className="business-table-actions">

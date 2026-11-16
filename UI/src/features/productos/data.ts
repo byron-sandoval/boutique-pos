@@ -72,7 +72,8 @@ export type FiltroProductos = { categoriaId: string; busqueda: string }
 
 export function listarProductos({ categoriaId, busqueda }: FiltroProductos, signal: AbortSignal) {
   return listarPaginas(pagina => {
-    const params = new URLSearchParams({ page: String(pagina), size: '100', sort: 'id,desc' })
+    const params = new URLSearchParams({ page: String(pagina), size: '100', sort: 'activo,desc' })
+    params.append('sort', 'id,desc')
     if (categoriaId) params.set('categoriaId', categoriaId)
     if (busqueda) params.set('busqueda', busqueda)
     return api<Page<Producto>>(`productos?${params}`, { signal })

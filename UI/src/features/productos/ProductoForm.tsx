@@ -88,7 +88,7 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
         precio: importe(form, 'precio', 'El precio'),
         costo: importe(form, 'costo', 'El costo'),
         ultimoCosto: producto?.ultimoCosto ?? null,
-        activo: form.get('activo') === 'on',
+        activo: producto?.activo ?? true,
       }, imagen, producto?.id, quitarFotoActual)
     } catch (error) {
       if (imagen && error instanceof ApiError && error.status === 503) {
@@ -129,7 +129,6 @@ export function ProductoForm({ producto, referencias, onClose, onSaved }: {
             </select>
           </label>
           <label>Marca<input name="marca" maxLength={100} defaultValue={producto?.marca ?? ''} /></label>
-          <label className="business-checkbox"><input name="activo" type="checkbox" defaultChecked={producto?.activo ?? true} />Producto activo</label>
           <label className="business-field-wide">Descripción<textarea name="descripcion" maxLength={255} rows={2} defaultValue={producto?.descripcion ?? ''} /></label>
         </div>
       </fieldset>

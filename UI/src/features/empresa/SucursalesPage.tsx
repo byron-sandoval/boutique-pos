@@ -28,6 +28,8 @@ function SucursalesContent({ empresa }: { empresa: Empresa }) {
   const [editor, setEditor] = useState<{ sucursal: Sucursal | null } | null>(null)
   const [stateEditor, setStateEditor] = useState<Sucursal | null>(null)
   const [success, setSuccess] = useFlashMessage()
+  const sucursales = result.status === 'ready'
+    ? [...result.data].sort((a, b) => Number(b.activa) - Number(a.activa)) : null
 
   return <div className="business-page">
     <div className="page-heading business-page-heading">
@@ -47,7 +49,7 @@ function SucursalesContent({ empresa }: { empresa: Empresa }) {
         <p className="notice error" role="alert">{result.message}</p>
         <Button variant="outline" onClick={reload}>Reintentar</Button>
       </div>}
-      {result.status === 'ready' && (result.data.length === 0
+      {sucursales && (sucursales.length === 0
         ? <p>Todavía no hay sucursales registradas.</p>
         : <div className="business-table-scroll" role="region" aria-label="Listado de sucursales" tabIndex={0}>
           <table className="business-table branch-table">
@@ -58,7 +60,7 @@ function SucursalesContent({ empresa }: { empresa: Empresa }) {
               <th scope="col">Estado</th>
               <th scope="col">Acciones</th>
             </tr></thead>
-            <tbody>{result.data.map(sucursal => <tr key={sucursal.id}>
+            <tbody>{sucursales.map(sucursal => <tr key={sucursal.id}>
               <th scope="row"><span className="business-table-name"><Store size={14} aria-hidden="true" />{sucursal.nombre}</span></th>
               <td>{sucursal.direccion}</td>
               <td>{sucursal.telefono || 'No registrado'}</td>

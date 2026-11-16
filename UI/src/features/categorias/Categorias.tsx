@@ -24,7 +24,7 @@ export function Categorias({ puedeEditar }: { puedeEditar: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    api<Page<Categoria>>(`categorias?page=${page}&size=${categoriasPorPagina}&sort=id,desc`, { signal: controller.signal })
+    api<Page<Categoria>>(`categorias?page=${page}&size=${categoriasPorPagina}&sort=activo,desc&sort=id,desc`, { signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setResult({ status: 'ready', data }) })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setResult({ status: 'error', message: error instanceof Error ? error.message : 'No se pudieron cargar las categorías.' })
