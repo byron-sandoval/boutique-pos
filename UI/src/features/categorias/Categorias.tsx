@@ -69,7 +69,7 @@ export function Categorias({ puedeEditar }: { puedeEditar: boolean }) {
           {result.data.content.map(category => <Card className="business-detail-card business-fiscal-card flex min-h-40 flex-col p-5!" key={category.id}>
             <div className="business-section-heading">
               <span className="business-symbol"><Layers3 size={20} aria-hidden="true" /></span>
-              <h3 className="text-sm font-semibold [overflow-wrap:anywhere]">{category.nombre}</h3>
+              <h3 className="text-sm font-semibold wrap-anywhere">{category.nombre}</h3>
             </div>
             <dl className="business-details">
               <div>
@@ -115,7 +115,7 @@ type DialogActions = { onClose: () => void; onSaved: () => void }
 function CategoriaForm({ categoria, onClose, onSaved }: DialogActions & { categoria: Categoria | null }) {
   const { busy, error, save } = useSave()
   return <RecordDialog title={categoria ? 'Editar categoría' : 'Nueva categoría'}
-    className="max-w-[440px]"
+    className="max-w-110"
     description="Define el nombre y la descripción de la categoría." busy={busy} onClose={onClose}>
     <form className="business-form" onSubmit={event => {
       event.preventDefault()
