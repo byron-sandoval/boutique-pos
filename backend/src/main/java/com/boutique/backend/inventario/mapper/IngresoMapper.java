@@ -34,9 +34,10 @@ public class IngresoMapper {
             ingreso.getFecha(), ingreso.getNoDocumento(), ingreso.getTotal(), ingreso.getObservaciones(), ingreso.getActivo());
     }
 
-    public IngresoResponse toResponse(Ingreso ingreso, List<DetalleIngresoResponse> detalles) {
+    public IngresoResponse toResponse(Ingreso ingreso, List<DetalleIngresoResponse> detalles, String registradoPor) {
         IngresoResumenResponse resumen = toResumen(ingreso);
         return new IngresoResponse(resumen.id(), resumen.sucursalId(), resumen.proveedorId(), resumen.usuarioId(),
-            resumen.fecha(), resumen.noDocumento(), resumen.total(), resumen.observaciones(), resumen.activo(), detalles);
+            resumen.fecha(), resumen.noDocumento(), resumen.total(), resumen.observaciones(), resumen.activo(), detalles,
+            registradoPor);
     }
 }

@@ -6,6 +6,7 @@ import com.boutique.backend.inventario.entity.Inventario;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,13 +15,30 @@ import org.springframework.data.repository.query.Param;
 
 public interface InventarioRepository extends JpaRepository<Inventario, Long> {
 
+    @Override
+    @EntityGraph(attributePaths = {"variante.producto", "sucursal"})
+    Page<Inventario> findAll(Pageable pageable);
+
     boolean existsByVarianteIdAndSucursalId(Long varianteId, Long sucursalId);
 
+    @EntityGraph(attributePaths = {"variante.producto", "sucursal"})
     Page<Inventario> findBySucursalId(Long sucursalId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"variante.producto", "sucursal"})
     Page<Inventario> findByVarianteId(Long varianteId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"variante.producto", "sucursal"})
     Page<Inventario> findBySucursalIdAndVarianteId(Long sucursalId, Long varianteId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"variante.producto", "sucursal"})
+    @Query("""
+        select i from Inventario i
+        where i.stock <= i.stockMinimo
+          and i.variante.activo = true
+          and i.variante.producto.activo = true
+          and i.sucursal.activa = true
+        """)
+    Page<Inventario> listarAlertas(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Inventario i where i.id = :id")

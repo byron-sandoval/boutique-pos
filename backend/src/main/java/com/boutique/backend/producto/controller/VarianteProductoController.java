@@ -3,9 +3,11 @@ package com.boutique.backend.producto.controller;
 import java.net.URI;
 
 import com.boutique.backend.producto.dto.EstadoCatalogoRequest;
+import com.boutique.backend.producto.dto.VarianteLoteRequest;
 import com.boutique.backend.producto.dto.VarianteProductoRequest;
 import com.boutique.backend.producto.dto.VarianteProductoResponse;
 import com.boutique.backend.producto.service.VarianteProductoService;
+import com.boutique.backend.shared.exception.ConflictoException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -59,6 +63,15 @@ public class VarianteProductoController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
             .path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
+    }
+
+    @PostMapping("/lote")
+    public ResponseEntity<?> crearLote(@Valid @RequestBody VarianteLoteRequest request) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(varianteProductoService.crearLote(request));
+        } catch (ConflictoException conflicto) {
+            return ResponseEntity.of(ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, conflicto.getMessage())).build();
+        }
     }
 
     @PutMapping("/{id}")

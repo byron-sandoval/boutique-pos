@@ -22,7 +22,7 @@ async function listarMonedas(signal: AbortSignal) {
   let totalPages = 1
   for (let page = 0; page < totalPages; page++) {
     signal.throwIfAborted()
-    const result = await api<Page<Moneda>>(`monedas?page=${page}&size=100&sort=codigo,asc`, { signal })
+    const result = await api<Page<Moneda>>(`monedas?page=${page}&size=100&sort=activo,desc&sort=codigo,asc`, { signal })
     monedas.push(...result.content)
     totalPages = result.page.totalPages
   }

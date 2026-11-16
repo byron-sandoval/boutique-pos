@@ -3,6 +3,7 @@ package com.boutique.backend.producto.service;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import com.boutique.backend.empresa.service.LogoStorage;
 import com.boutique.backend.producto.dto.CategoriaRequest;
 import com.boutique.backend.producto.dto.ProductoRequest;
 import com.boutique.backend.producto.dto.UnidadMedidaRequest;
@@ -26,15 +27,18 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -45,6 +49,7 @@ class CatalogoServiceTest {
     @Mock private CategoriaRepository categorias;
     @Mock private UnidadMedidaRepository unidades;
     @Mock private ProductoRepository productos;
+    @Mock private LogoStorage imagenes;
 
     private CategoriaService categoriaService;
     private UnidadMedidaService unidadService;
@@ -52,9 +57,9 @@ class CatalogoServiceTest {
 
     @BeforeEach
     void setUp() {
-        categoriaService = new CategoriaService(categorias, new CategoriaMapper());
-        unidadService = new UnidadMedidaService(unidades, new UnidadMedidaMapper());
-        productoService = new ProductoService(productos, categorias, unidades, new ProductoMapper());
+        categoriaService = new CategoriaService(categorias, new CategoriaMapper(), productos);
+        unidadService = new UnidadMedidaService(unidades, new UnidadMedidaMapper(), productos);
+        productoService = new ProductoService(productos, categorias, unidades, new ProductoMapper(), imagenes);
     }
 
     @Test
@@ -70,7 +75,7 @@ class CatalogoServiceTest {
     @Test
     void actualizarCategoriaExcluyeSuPropioIdDeLaComprobacion() {
         Categoria categoria = categoria();
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
         when(categorias.saveAndFlush(categoria)).thenReturn(categoria);
 
         assertEquals(1L, categoriaService.actualizar(1L, new CategoriaRequest("Ropa", null, true)).id());
@@ -82,7 +87,7 @@ class CatalogoServiceTest {
     @Test
     void desactivarCategoriaConservaElRegistroYElNombre() {
         Categoria categoria = categoria();
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
         when(categorias.saveAndFlush(categoria)).thenReturn(categoria);
 
         var response = categoriaService.cambiarEstado(1L, false);
@@ -90,6 +95,51 @@ class CatalogoServiceTest {
         assertFalse(response.activo());
         assertEquals("Ropa", response.nombre());
         verify(categorias, never()).delete(any(Categoria.class));
+    }
+
+    @Test
+    void categoriaEnUsoPorProductosActivosNoSePuedeDesactivar() {
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(productos.existsByCategoriaIdAndActivoTrue(1L)).thenReturn(true);
+
+        assertThrows(ConflictoException.class, () -> categoriaService.cambiarEstado(1L, false));
+        assertThrows(ConflictoException.class,
+            () -> categoriaService.actualizar(1L, new CategoriaRequest("Ropa", null, false)));
+        verify(categorias, never()).saveAndFlush(any(Categoria.class));
+    }
+
+    @Test
+    void unidadEnUsoPorProductosActivosNoSePuedeDesactivar() {
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.existsByUnidadMedidaIdAndActivoTrue(2L)).thenReturn(true);
+
+        assertThrows(ConflictoException.class, () -> unidadService.cambiarEstado(2L, false));
+        assertThrows(ConflictoException.class,
+            () -> unidadService.actualizar(2L, new UnidadMedidaRequest("Unidad", "ud", false)));
+        verify(unidades, never()).saveAndFlush(any(UnidadMedida.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void activarProductoExigeSuCategoriaYSuUnidadActivas(boolean categoriaActiva) {
+        Categoria categoria = categoria();
+        categoria.setActivo(categoriaActiva);
+        UnidadMedida unidad = unidad();
+        unidad.setActivo(!categoriaActiva);
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setCategoria(categoria);
+        producto.setUnidadMedida(unidad);
+        producto.setActivo(false);
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
+
+        assertThrows(ConflictoException.class, () -> productoService.cambiarEstado(3L, true));
+        assertThrows(ConflictoException.class, () -> productoService.actualizar(3L, request("P-001")));
+        assertThrows(ConflictoException.class, () -> productoService.crear(request("P-001")));
+        assertFalse(producto.getActivo());
+        verify(productos, never()).saveAndFlush(any(Producto.class));
     }
 
     @Test
@@ -105,7 +155,7 @@ class CatalogoServiceTest {
     @Test
     void desactivarUnidadNoEliminaElRegistroYEsIdempotente() {
         UnidadMedida unidad = unidad();
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
         when(unidades.saveAndFlush(unidad)).thenReturn(unidad);
 
         unidadService.cambiarEstado(2L, false);
@@ -125,7 +175,7 @@ class CatalogoServiceTest {
         producto.setCodigo("P-001");
         producto.setCategoria(categoria());
         producto.setUnidadMedida(unidad());
-        when(productos.findById(3L)).thenReturn(Optional.of(producto));
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
         when(productos.saveAndFlush(producto)).thenReturn(producto);
 
         productoService.cambiarEstado(3L, false);
@@ -143,7 +193,7 @@ class CatalogoServiceTest {
     @Test
     void actualizarUnidadNoConsideraSuPropioNombreComoDuplicado() {
         UnidadMedida unidad = unidad();
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad));
         when(unidades.saveAndFlush(unidad)).thenReturn(unidad);
 
         assertEquals(2L, unidadService.actualizar(2L, new UnidadMedidaRequest("Unidad", "ud", true)).id());
@@ -154,7 +204,7 @@ class CatalogoServiceTest {
 
     @Test
     void productoNoSeGuardaSiSuCategoriaNoExiste() {
-        when(categorias.findById(1L)).thenReturn(Optional.empty());
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class, () -> productoService.crear(request("P-001")));
 
@@ -163,8 +213,8 @@ class CatalogoServiceTest {
 
     @Test
     void productoNoSeGuardaSiSuUnidadNoExiste() {
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.empty());
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.empty());
 
         assertThrows(RecursoNoEncontradoException.class, () -> productoService.crear(request("P-001")));
 
@@ -173,8 +223,8 @@ class CatalogoServiceTest {
 
     @Test
     void rechazaCodigoDeProductoDuplicadoConEspacios() {
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(productos.existsByCodigo("P-001")).thenReturn(true);
 
         assertThrows(ConflictoException.class, () -> productoService.crear(request(" P-001 ")));
@@ -187,15 +237,65 @@ class CatalogoServiceTest {
         Producto producto = new Producto();
         producto.setId(3L);
         producto.setNombre("Nombre original");
-        when(productos.findById(3L)).thenReturn(Optional.of(producto));
-        when(categorias.findById(1L)).thenReturn(Optional.of(categoria()));
-        when(unidades.findById(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
         when(productos.existsByCodigoAndIdNot("P-002", 3L)).thenReturn(true);
 
         assertThrows(ConflictoException.class, () -> productoService.actualizar(3L, request("P-002")));
 
         assertEquals("Nombre original", producto.getNombre());
         verify(productos, never()).saveAndFlush(any(Producto.class));
+    }
+
+    @Test
+    void editarSinAdjuntoConservaLaImagenAnterior() {
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl("https://example.com/foto.png");
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        var actualizado = productoService.actualizar(3L, request("P-001"), null);
+
+        assertEquals("https://example.com/foto.png", actualizado.imagenUrl());
+        verifyNoInteractions(imagenes);
+    }
+
+    @Test
+    void guardaLaUrlSubidaYEntregaLaAnteriorParaReemplazarla() {
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl("https://example.com/anterior.png");
+        var archivo = new MockMultipartFile("imagen", "nueva.png", "image/png", new byte[] {1});
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(imagenes.subirProducto(archivo, "https://example.com/anterior.png")).thenReturn("https://example.com/nueva.png");
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        var actualizado = productoService.actualizar(3L, request("P-001"), archivo);
+
+        assertEquals("https://example.com/nueva.png", actualizado.imagenUrl());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void quitaLaFotoYProgramaBorrarElArchivoSiNingunOtroProductoLoUsa(boolean compartida) {
+        String url = "https://example.com/foto.png";
+        Producto producto = new Producto();
+        producto.setId(3L);
+        producto.setImagenUrl(url);
+        when(productos.findByIdForUpdate(3L)).thenReturn(Optional.of(producto));
+        when(categorias.findByIdForUpdate(1L)).thenReturn(Optional.of(categoria()));
+        when(unidades.findByIdForUpdate(2L)).thenReturn(Optional.of(unidad()));
+        when(productos.existsByImagenUrlAndIdNot(url, 3L)).thenReturn(compartida);
+        when(productos.saveAndFlush(producto)).thenReturn(producto);
+
+        assertNull(productoService.actualizarQuitandoImagen(3L, request("P-001")).imagenUrl());
+        verify(imagenes, times(compartida ? 0 : 1)).eliminarProductoAlConfirmar(url);
     }
 
     @ParameterizedTest

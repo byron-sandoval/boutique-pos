@@ -1,6 +1,7 @@
 package com.boutique.backend.producto.controller;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -10,6 +11,7 @@ import com.boutique.backend.producto.dto.ProductoRequest;
 import com.boutique.backend.producto.dto.ProductoResponse;
 import com.boutique.backend.producto.dto.UnidadMedidaRequest;
 import com.boutique.backend.producto.dto.UnidadMedidaResponse;
+import com.boutique.backend.producto.dto.VarianteLoteRequest;
 import com.boutique.backend.producto.dto.VarianteProductoRequest;
 import com.boutique.backend.producto.dto.VarianteProductoResponse;
 import com.boutique.backend.producto.service.CategoriaService;
@@ -32,7 +34,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -45,8 +49,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,6 +60,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Contrato HTTP aislado, sin Spring Boot, seguridad, base de datos ni migraciones.
 @ExtendWith(MockitoExtension.class)
 class ProductoControllerTest {
+
+    private static final String LOTE_VARIANTES = """
+        {"productoId":1,"variantes":[{"sku":"CAM-ROJO","color":"Rojo"}]}
+        """;
 
     @Mock private CategoriaService categorias;
     @Mock private UnidadMedidaService unidades;
@@ -71,6 +81,7 @@ class ProductoControllerTest {
                 new UnidadMedidaController(unidades), new ProductoController(productos),
                 new VarianteProductoController(variantes))
             .setValidator(validator)
+            .setControllerAdvice(new CatalogoErrorHandler())
             .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
             .build();
     }
@@ -94,6 +105,69 @@ class ProductoControllerTest {
         mvc.perform(post("/api/" + recurso).contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andExpect(header().string("Location", "http://localhost/api/" + recurso + "/1"))
+            .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void informaPorQueUnaCategoriaNoSePuedeDesactivar() throws Exception {
+        String detalle = "Hay productos activos que usan esta categoría.";
+        when(categorias.cambiarEstado(1L, false)).thenThrow(new ConflictoException(detalle));
+
+        mvc.perform(patch("/api/categorias/1/estado").accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
+            .andExpect(status().isConflict())
+            .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+            .andExpect(jsonPath("$.detail").value(detalle));
+    }
+
+    @Test
+    void crearLoteDevuelveLasVariantesRegistradas() throws Exception {
+        when(variantes.crearLote(any(VarianteLoteRequest.class))).thenReturn(List.of(variante(true)));
+
+        mvc.perform(post("/api/variantes-producto/lote").contentType(MediaType.APPLICATION_JSON).content(LOTE_VARIANTES))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void conflictoDeLoteExponeLaVarianteQueDebeCorregirse() throws Exception {
+        String detalle = "Variante CAM-ROJO. Ya existe una variante con ese SKU.";
+        when(variantes.crearLote(any(VarianteLoteRequest.class))).thenThrow(new ConflictoException(detalle));
+
+        mvc.perform(post("/api/variantes-producto/lote").contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON).content(LOTE_VARIANTES))
+            .andExpect(status().isConflict())
+            .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+            .andExpect(jsonPath("$.detail").value(detalle));
+    }
+
+    @Test
+    void crearLoteRechazaUnaFilaSinSku() throws Exception {
+        mvc.perform(post("/api/variantes-producto/lote").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"productoId\":1,\"variantes\":[{\"color\":\"Rojo\"}]}"))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(variantes);
+    }
+
+    @Test
+    void editaProductoYFotoEnUnaSolaSolicitud() throws Exception {
+        var datos = new MockMultipartFile("producto", "producto.json", MediaType.APPLICATION_JSON_VALUE,
+            productoJson("10.00").getBytes(StandardCharsets.UTF_8));
+        var imagen = new MockMultipartFile("imagen", "foto.png", MediaType.IMAGE_PNG_VALUE, new byte[] {1});
+        when(productos.actualizar(eq(1L), any(ProductoRequest.class), eq(imagen))).thenReturn(producto(true));
+
+        mvc.perform(multipart(HttpMethod.PUT, "/api/productos/1").file(datos).file(imagen))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void permiteQuitarLaFotoAlGuardarLaEdicionDelProducto() throws Exception {
+        when(productos.actualizarQuitandoImagen(eq(1L), any(ProductoRequest.class))).thenReturn(producto(true));
+
+        mvc.perform(put("/api/productos/1").param("quitarImagen", "true")
+                .contentType(MediaType.APPLICATION_JSON).content(productoJson("10.00")))
+            .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1));
     }
 
@@ -149,6 +223,19 @@ class ProductoControllerTest {
             new PageImpl<>(List.of(producto(true)), invocation.getArgument(1), 3));
 
         mvc.perform(get("/api/productos").param("categoriaId", "2").param("page", "1").param("size", "2"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].categoriaId").value(2))
+            .andExpect(jsonPath("$.page.number").value(1))
+            .andExpect(jsonPath("$.page.totalElements").value(3));
+    }
+
+    @Test
+    void productosCombinanLaBusquedaConLaCategoriaYPaginacion() throws Exception {
+        when(productos.buscar(eq("BLU"), eq(2L), any(Pageable.class))).thenAnswer(invocation ->
+            new PageImpl<>(List.of(producto(true)), invocation.getArgument(2), 3));
+
+        mvc.perform(get("/api/productos").param("busqueda", " BLU ").param("categoriaId", "2")
+                .param("page", "1").param("size", "2"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].categoriaId").value(2))
             .andExpect(jsonPath("$.page.number").value(1))

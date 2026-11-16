@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import com.boutique.backend.inventario.dto.*;
 import com.boutique.backend.inventario.service.IngresoService;
 import com.boutique.backend.inventario.service.InventarioService;
+import com.boutique.backend.shared.exception.ConflictoException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,14 +53,46 @@ class InventarioIngresoControllerTest {
     }
 
     @Test
-    void creaIngresoConDetallesYDevuelveUbicacion() throws Exception {
-        when(ingresos.crear(any())).thenReturn(new IngresoResponse(10L, 1L, null, 8L, Instant.now(), "F1",
-            new BigDecimal("2.00"), null, true, List.of()));
+    void devuelveElUltimoCostoDeLaVariante() throws Exception {
+        when(ingresos.ultimoCosto(4L)).thenReturn(new BigDecimal("300.00"));
+        mvc.perform(get("/api/ingresos/ultimo-costo").param("varianteId", "4"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.costoUnitario").value(300.0));
+    }
+
+    @Test
+    void obtieneLaSucursalAsignadaParaRegistrarCompras() throws Exception {
+        when(ingresos.sucursalActual()).thenReturn(new SucursalIngresoResponse(3L, "Centro", true));
+        mvc.perform(get("/api/ingresos/sucursal-actual"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(3))
+            .andExpect(jsonPath("$.nombre").value("Centro"))
+            .andExpect(jsonPath("$.activa").value(true));
+    }
+
+    @Test
+    void explicaElConflictoAlRegistrarUnaCompra() throws Exception {
+        when(ingresos.crear(any())).thenThrow(new ConflictoException("Ya existe ese documento."));
         mvc.perform(post("/api/ingresos").contentType(MediaType.APPLICATION_JSON).content("""
-            {"sucursalId":1,"noDocumento":"F1","detalles":[{"varianteId":4,"cantidad":2,"costoUnitario":1.00}]}
+            {"sucursalId":1,"proveedorId":6,"noDocumento":"F1","detalles":[{"varianteId":4,"cantidad":2,"costoUnitario":1.00}]}
+            """))
+            .andExpect(status().isConflict())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.detail").value("Ya existe ese documento."));
+    }
+
+    @Test
+    void creaIngresoConDetallesYDevuelveUbicacion() throws Exception {
+        when(ingresos.crear(any())).thenReturn(new IngresoResponse(10L, 1L, 6L, 8L, Instant.now(), "F1",
+            new BigDecimal("2.00"), null, true, List.of(), "admin"));
+        mvc.perform(post("/api/ingresos").contentType(MediaType.APPLICATION_JSON).content("""
+            {"sucursalId":1,"proveedorId":6,"noDocumento":"F1","detalles":[{"varianteId":4,"cantidad":2,"costoUnitario":1.00}]}
             """))
             .andExpect(status().isCreated()).andExpect(header().string("Location", "http://localhost/api/ingresos/10"))
-            .andExpect(jsonPath("$.usuarioId").value(8));
+            .andExpect(jsonPath("$.usuarioId").value(8))
+            .andExpect(jsonPath("$.proveedorId").value(6))
+            .andExpect(jsonPath("$.registradoPor").value("admin"))
+            .andExpect(jsonPath("$.rolRegistro").doesNotExist());
     }
 
     @ParameterizedTest
@@ -69,21 +104,28 @@ class InventarioIngresoControllerTest {
     }
 
     static Stream<String> ingresosInvalidos() {
-        String base = "{\"sucursalId\":1,\"noDocumento\":\"F1\",\"detalles\":%s}";
-        return Stream.of("[]", "[null]", "[{\"varianteId\":4,\"cantidad\":0,\"costoUnitario\":1}]",
+        String base = "{\"sucursalId\":1,\"proveedorId\":6,\"noDocumento\":\"F1\",\"detalles\":%s}";
+        return Stream.concat(Stream.of("[]", "[null]", "[{\"varianteId\":4,\"cantidad\":0,\"costoUnitario\":1}]",
             "[{\"varianteId\":4,\"cantidad\":1,\"costoUnitario\":-1}]",
             "[{\"varianteId\":4,\"cantidad\":1,\"costoUnitario\":0.001}]",
             "[{\"varianteId\":4,\"cantidad\":1,\"costoUnitario\":10000000000}]",
             "[{\"varianteId\":4,\"cantidad\":1}]", "[{\"cantidad\":1,\"costoUnitario\":1}]")
-            .map(base::formatted);
+            .map(base::formatted), Stream.of("""
+                {"sucursalId":1,"noDocumento":"F1","detalles":[{"varianteId":4,"cantidad":1,"costoUnitario":1}]}
+                """, """
+                {"sucursalId":1,"proveedorId":null,"noDocumento":"F1","detalles":[{"varianteId":4,"cantidad":1,"costoUnitario":1}]}
+                """));
     }
 
     @Test
     void inventarioSeCreaEnCero() throws Exception {
-        when(inventarios.crear(any())).thenReturn(new InventarioResponse(1L, 4L, 1L, 0, 2, null));
+        when(inventarios.crear(any())).thenReturn(new InventarioResponse(1L, 4L, 1L, 0, 2, null,
+            "Camisa", "CAM-M-AZUL", "M", "Azul", "Centro"));
         mvc.perform(post("/api/inventarios").contentType(MediaType.APPLICATION_JSON)
             .content("{\"varianteId\":4,\"sucursalId\":1,\"stockMinimo\":2}"))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0));
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0))
+            .andExpect(jsonPath("$.producto").value("Camisa"))
+            .andExpect(jsonPath("$.sucursal").value("Centro"));
     }
 
     @Test
@@ -100,6 +142,18 @@ class InventarioIngresoControllerTest {
             .content("{\"varianteId\":4,\"sucursalId\":1,\"stockMinimo\":-1}"))
             .andExpect(status().isBadRequest());
         verifyNoInteractions(inventarios);
+    }
+
+    @Test
+    void paginaLasAlertasConElStockMasBajoPrimero() throws Exception {
+        var pagina = PageRequest.of(1, 20, Sort.by("stock", "id"));
+        when(inventarios.listarAlertas(pagina)).thenReturn(Page.empty(pagina));
+
+        mvc.perform(get("/api/inventarios/alertas").param("page", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page.number").value(1));
+
+        verify(inventarios).listarAlertas(pagina);
     }
 
     @Test

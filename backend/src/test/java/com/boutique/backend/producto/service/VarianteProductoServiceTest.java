@@ -1,7 +1,9 @@
 package com.boutique.backend.producto.service;
 
+import java.util.List;
 import java.util.Optional;
 
+import com.boutique.backend.producto.dto.VarianteLoteRequest;
 import com.boutique.backend.producto.dto.VarianteProductoRequest;
 import com.boutique.backend.producto.entity.Producto;
 import com.boutique.backend.producto.entity.VarianteProducto;
@@ -20,8 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -46,6 +51,49 @@ class VarianteProductoServiceTest {
         assertThrows(RecursoNoEncontradoException.class, () -> service.crear(request("SKU-1", null, null, null)));
 
         verifyNoInteractions(variantes);
+    }
+
+    @Test
+    void guardaLasCombinacionesDelLoteJuntas() {
+        when(productos.findById(1L)).thenReturn(Optional.of(producto()));
+        when(variantes.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var resultado = service.crearLote(lote(
+            new VarianteLoteRequest.Fila(" M ", "Rojo", "CAM-M-ROJO", "001"),
+            new VarianteLoteRequest.Fila("M", "Azul", "CAM-M-AZUL", null)
+        ));
+
+        assertEquals(List.of("Rojo", "Azul"), resultado.stream().map(variante -> variante.color()).toList());
+        assertEquals("M", resultado.getFirst().talla());
+        assertEquals("001", resultado.getFirst().codigoBarras());
+        verify(variantes).saveAllAndFlush(anyList());
+    }
+
+    @Test
+    void noGuardaNingunaFilaCuandoUnaCombinacionYaExiste() {
+        when(productos.findById(1L)).thenReturn(Optional.of(producto()));
+        when(variantes.existsByProductoIdAndTallaAndColor(eq(1L), eq("M"), anyString()))
+            .thenAnswer(invocation -> "Azul".equals(invocation.getArgument(2)));
+
+        var conflicto = assertThrows(ConflictoException.class, () -> service.crearLote(lote(
+            new VarianteLoteRequest.Fila("M", "Rojo", "CAM-M-ROJO", null),
+            new VarianteLoteRequest.Fila("M", "Azul", "CAM-M-AZUL", null)
+        )));
+
+        assertTrue(conflicto.getMessage().contains("CAM-M-AZUL"));
+        verify(variantes, never()).saveAllAndFlush(anyList());
+    }
+
+    @Test
+    void rechazaSkuRepetidoDentroDelLoteDespuesDeNormalizar() {
+        when(productos.findById(1L)).thenReturn(Optional.of(producto()));
+
+        assertThrows(ConflictoException.class, () -> service.crearLote(lote(
+            new VarianteLoteRequest.Fila(null, "Rojo", "CAM", null),
+            new VarianteLoteRequest.Fila(null, "Azul", " CAM ", null)
+        )));
+
+        verify(variantes, never()).saveAllAndFlush(anyList());
     }
 
     @Test
@@ -142,7 +190,12 @@ class VarianteProductoServiceTest {
     private Producto producto() {
         Producto producto = new Producto();
         producto.setId(1L);
+        producto.setActivo(true);
         return producto;
+    }
+
+    private VarianteLoteRequest lote(VarianteLoteRequest.Fila... filas) {
+        return new VarianteLoteRequest(1L, List.of(filas));
     }
 
     private VarianteProducto variante() {

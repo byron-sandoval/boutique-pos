@@ -51,10 +51,20 @@ class InventarioServiceTest {
     @Test
     void creaExistenciaSinInventarStockInicial() {
         relacionesActivas();
+        sucursal.setNombre("Centro");
+        variante.getProducto().setNombre("Camisa");
+        variante.setSku("CAM-M-AZUL");
+        variante.setTalla("M");
+        variante.setColor("Azul");
         when(repository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         var respuesta = service.crear(new InventarioCreateRequest(4L, 1L, 3, 20));
         assertEquals(0, respuesta.stock());
         assertEquals(3, respuesta.stockMinimo());
+        assertEquals("Centro", respuesta.sucursal());
+        assertEquals("Camisa", respuesta.producto());
+        assertEquals("CAM-M-AZUL", respuesta.sku());
+        assertEquals("M", respuesta.talla());
+        assertEquals("Azul", respuesta.color());
     }
 
     @Test

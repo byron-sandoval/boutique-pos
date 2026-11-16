@@ -5,6 +5,7 @@ import com.boutique.backend.producto.dto.CategoriaResponse;
 import com.boutique.backend.producto.entity.Categoria;
 import com.boutique.backend.producto.mapper.CategoriaMapper;
 import com.boutique.backend.producto.repository.CategoriaRepository;
+import com.boutique.backend.producto.repository.ProductoRepository;
 import com.boutique.backend.shared.exception.ConflictoException;
 import com.boutique.backend.shared.exception.RecursoNoEncontradoException;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
     private final CategoriaMapper categoriaMapper;
+    private final ProductoRepository productoRepository;
 
     public Page<CategoriaResponse> listar(@NotNull Pageable pageable) {
         return categoriaRepository.findAll(pageable).map(categoriaMapper::toResponse);
@@ -45,7 +47,8 @@ public class CategoriaService {
 
     @Transactional
     public CategoriaResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid CategoriaRequest request) {
-        Categoria entity = buscar(id);
+        Categoria entity = bloquear(id);
+        validarDisponibilidad(id, request.activo());
         String nombre = request.nombre().trim();
         validarNombre(nombre, id);
         categoriaMapper.updateEntity(request, entity);
@@ -55,7 +58,8 @@ public class CategoriaService {
 
     @Transactional
     public CategoriaResponse cambiarEstado(@NotNull @Positive Long id, boolean activo) {
-        Categoria entity = buscar(id);
+        Categoria entity = bloquear(id);
+        validarDisponibilidad(id, activo);
         entity.setActivo(activo);
         return categoriaMapper.toResponse(guardar(entity));
     }
@@ -72,6 +76,17 @@ public class CategoriaService {
     private Categoria buscar(Long id) {
         return categoriaRepository.findById(id)
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la categoria con ID " + id + "."));
+    }
+
+    private Categoria bloquear(Long id) {
+        return categoriaRepository.findByIdForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException("No existe la categoría con ID " + id + "."));
+    }
+
+    private void validarDisponibilidad(Long id, boolean activo) {
+        if (!activo && productoRepository.existsByCategoriaIdAndActivoTrue(id)) {
+            throw new ConflictoException("Hay productos activos que usan esta categoría. Reasígnalos o desactívalos primero.");
+        }
     }
 
     private Categoria guardar(Categoria entity) {

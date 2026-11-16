@@ -35,7 +35,7 @@ public class LogoStorage {
     private static final byte[] JPEG_SIGNATURE = HexFormat.of().parseHex("ffd8ff");
     private static final byte[] RIFF_SIGNATURE = HexFormat.of().parseHex("52494646");
     private static final byte[] WEBP_SIGNATURE = HexFormat.of().parseHex("57454250");
-    private static final Pattern NOMBRE_LOGO = Pattern.compile(
+    private static final Pattern NOMBRE_IMAGEN = Pattern.compile(
         "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(png|jpg|webp)");
 
     private final String url;
@@ -65,19 +65,48 @@ public class LogoStorage {
     }
 
     public String subir(MultipartFile logo, String urlAnterior) {
-        if (logo.getSize() > MAX_BYTES) {
-            throw new ResponseStatusException(HttpStatus.CONTENT_TOO_LARGE, "El logo admite hasta 2 MB.");
+        return subirImagen(logo, urlAnterior, "logos");
+    }
+
+    public String subirProducto(MultipartFile imagen, String urlAnterior) {
+        return subirImagen(imagen, urlAnterior, "productos");
+    }
+
+    public void eliminarProductoAlConfirmar(String urlImagen) {
+        URI objeto;
+        try {
+            objeto = objetoAdministrado(proyectoConfigurado(), "productos", urlImagen);
+        } catch (ServicioExternoException exception) {
+            log.warn("No se pudo programar la eliminación de la foto del producto en Supabase: {}", exception.getMessage());
+            return;
         }
-        byte[] bytes = leer(logo);
+        if (objeto == null) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    limpiar(objeto);
+                }
+            }
+        });
+    }
+
+    private String subirImagen(MultipartFile imagen, String urlAnterior, String carpeta) {
+        if (imagen.getSize() > MAX_BYTES) {
+            throw new ResponseStatusException(HttpStatus.CONTENT_TOO_LARGE, "La imagen admite hasta 2 MB.");
+        }
+        byte[] bytes = leer(imagen);
         Formato formato = detectarFormato(bytes);
         URI proyecto = proyectoConfigurado();
         String nombre = UUID.randomUUID() + "." + formato.extension();
-        URI objeto = ruta(proyecto, nombre, false);
-        String publica = ruta(proyecto, nombre, true).toString();
+        URI objeto = ruta(proyecto, carpeta, nombre, false);
+        String publica = ruta(proyecto, carpeta, nombre, true).toString();
         if (publica.length() > 500) {
-            throw new ServicioExternoException("La URL del logo supera la longitud admitida.");
+            throw new ServicioExternoException("La URL de la imagen supera la longitud admitida.");
         }
-        URI anterior = objetoAdministrado(proyecto, urlAnterior);
+        URI anterior = objetoAdministrado(proyecto, carpeta, urlAnterior);
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -96,13 +125,13 @@ public class LogoStorage {
                 .body(bytes)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), (request, response) -> {
-                    log.warn("Supabase rechazó la subida del logo con estado {}", response.getStatusCode().value());
-                    throw new ServicioExternoException("Supabase rechazó la subida del logo.");
+                    log.warn("Supabase rechazó la subida de la imagen con estado {}", response.getStatusCode().value());
+                    throw new ServicioExternoException("Supabase rechazó la subida de la imagen.");
                 })
                 .toBodilessEntity();
             return publica;
         } catch (RestClientException exception) {
-            throw new ServicioExternoException("No se pudo conectar con Supabase para subir el logo.");
+            throw new ServicioExternoException("No se pudo conectar con Supabase para subir la imagen.");
         }
     }
 
@@ -123,21 +152,21 @@ public class LogoStorage {
         return proyecto;
     }
 
-    private URI ruta(URI proyecto, String nombre, boolean publica) {
+    private URI ruta(URI proyecto, String carpeta, String nombre, boolean publica) {
         var ruta = UriComponentsBuilder.fromUri(proyecto).pathSegment("storage", "v1", "object");
         if (publica) {
             ruta.pathSegment("public");
         }
-        return ruta.pathSegment(bucket, "logos", nombre).build().encode().toUri();
+        return ruta.pathSegment(bucket, carpeta, nombre).build().encode().toUri();
     }
 
-    private URI objetoAdministrado(URI proyecto, String urlAnterior) {
+    private URI objetoAdministrado(URI proyecto, String carpeta, String urlAnterior) {
         if (urlAnterior == null) {
             return null;
         }
         String nombre = urlAnterior.substring(urlAnterior.lastIndexOf('/') + 1);
-        if (NOMBRE_LOGO.matcher(nombre).matches() && ruta(proyecto, nombre, true).toString().equals(urlAnterior)) {
-            return ruta(proyecto, nombre, false);
+        if (NOMBRE_IMAGEN.matcher(nombre).matches() && ruta(proyecto, carpeta, nombre, true).toString().equals(urlAnterior)) {
+            return ruta(proyecto, carpeta, nombre, false);
         }
         return null;
     }
@@ -147,20 +176,20 @@ public class LogoStorage {
             client.delete().uri(objeto).header("apikey", key).exchange((request, response) -> {
                 var estado = response.getStatusCode();
                 if (!estado.is2xxSuccessful() && estado.value() != 404) {
-                    log.warn("Supabase rechazó la eliminación del logo {} con estado {}", objeto, estado.value());
+                    log.warn("Supabase rechazó la eliminación de la imagen {} con estado {}", objeto, estado.value());
                 }
                 return null;
             });
         } catch (RestClientException exception) {
-            log.warn("No se pudo contactar a Supabase para eliminar el logo {}", objeto);
+            log.warn("No se pudo contactar a Supabase para eliminar la imagen {}", objeto);
         }
     }
 
-    private byte[] leer(MultipartFile logo) {
+    private byte[] leer(MultipartFile imagen) {
         try {
-            return logo.getBytes();
+            return imagen.getBytes();
         } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo leer el archivo del logo.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo leer el archivo de la imagen.");
         }
     }
 

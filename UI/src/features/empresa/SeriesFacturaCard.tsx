@@ -25,7 +25,7 @@ async function listarSeries(signal: AbortSignal) {
   let totalPages = 1
   for (let page = 0; page < totalPages; page++) {
     signal.throwIfAborted()
-    const result = await api<Page<SerieFactura>>(`series-factura?page=${page}&size=100&sort=id,asc`, { signal })
+    const result = await api<Page<SerieFactura>>(`series-factura?page=${page}&size=100&sort=activa,desc&sort=id,asc`, { signal })
     series.push(...result.content)
     totalPages = result.page.totalPages
   }

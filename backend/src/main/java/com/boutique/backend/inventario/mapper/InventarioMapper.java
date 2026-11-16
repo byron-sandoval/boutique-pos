@@ -26,8 +26,10 @@ public class InventarioMapper {
     }
 
     public InventarioResponse toResponse(Inventario inventario) {
-        return new InventarioResponse(inventario.getId(), inventario.getVariante().getId(),
-            inventario.getSucursal().getId(), inventario.getStock(), inventario.getStockMinimo(),
-            inventario.getStockMaximo());
+        VarianteProducto variante = inventario.getVariante();
+        Sucursal sucursal = inventario.getSucursal();
+        return new InventarioResponse(inventario.getId(), variante.getId(), sucursal.getId(),
+            inventario.getStock(), inventario.getStockMinimo(), inventario.getStockMaximo(),
+            variante.getProducto().getNombre(), variante.getSku(), variante.getTalla(), variante.getColor(), sucursal.getNombre());
     }
 }

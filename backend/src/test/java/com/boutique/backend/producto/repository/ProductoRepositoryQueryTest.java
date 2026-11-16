@@ -9,6 +9,7 @@ import com.boutique.backend.producto.entity.VarianteProducto;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.parser.PartTree;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -31,6 +32,8 @@ class ProductoRepositoryQueryTest {
     }
 
     private static Stream<Arguments> consultas(Class<?> repository, Class<?> entity) {
-        return Stream.of(repository.getDeclaredMethods()).map(method -> Arguments.of(method.getName(), entity));
+        return Stream.of(repository.getDeclaredMethods())
+            .filter(method -> !method.isAnnotationPresent(Query.class))
+            .map(method -> Arguments.of(method.getName(), entity));
     }
 }

@@ -1,5 +1,6 @@
 package com.boutique.backend.producto.service;
 
+import com.boutique.backend.empresa.service.LogoStorage;
 import com.boutique.backend.producto.dto.ProductoRequest;
 import com.boutique.backend.producto.dto.ProductoResponse;
 import com.boutique.backend.producto.entity.Categoria;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Validated
@@ -31,14 +33,22 @@ public class ProductoService {
     private final CategoriaRepository categoriaRepository;
     private final UnidadMedidaRepository unidadMedidaRepository;
     private final ProductoMapper productoMapper;
+    private final LogoStorage imagenStorage;
 
     public Page<ProductoResponse> listar(@NotNull Pageable pageable) {
         return productoRepository.findAll(pageable).map(productoMapper::toResponse);
     }
 
     public Page<ProductoResponse> listarPorCategoria(@NotNull @Positive Long categoriaId, @NotNull Pageable pageable) {
-        buscarCategoria(categoriaId);
+        buscarCategoria(categoriaId, false);
         return productoRepository.findByCategoriaId(categoriaId, pageable).map(productoMapper::toResponse);
+    }
+
+    public Page<ProductoResponse> buscar(String busqueda, Long categoriaId, Pageable pageable) {
+        if (categoriaId != null) {
+            buscarCategoria(categoriaId, false);
+        }
+        return productoRepository.buscar(busqueda, categoriaId, pageable).map(productoMapper::toResponse);
     }
 
     public ProductoResponse obtenerPorId(@NotNull @Positive Long id) {
@@ -47,30 +57,74 @@ public class ProductoService {
 
     @Transactional
     public ProductoResponse crear(@NotNull @Valid ProductoRequest request) {
-        Categoria categoria = buscarCategoria(request.categoriaId());
-        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId());
+        return crear(request, null);
+    }
+
+    @Transactional
+    public ProductoResponse crear(@NotNull @Valid ProductoRequest request, MultipartFile imagen) {
+        boolean activo = request.activo();
+        Categoria categoria = buscarCategoria(request.categoriaId(), activo);
+        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId(), activo);
+        if (activo) validarReferenciasActivas(categoria, unidad);
         String codigo = request.codigo().trim();
         validarCodigo(codigo, null);
         Producto entity = productoMapper.toEntity(request, categoria, unidad);
         entity.setCodigo(codigo);
+        if (imagen != null) {
+            entity.setImagenUrl(imagenStorage.subirProducto(imagen, null));
+        }
         return productoMapper.toResponse(guardar(entity));
     }
 
     @Transactional
     public ProductoResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request) {
-        Producto entity = buscarProducto(id);
-        Categoria categoria = buscarCategoria(request.categoriaId());
-        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId());
+        return actualizar(id, request, null, false, false);
+    }
+
+    @Transactional
+    public ProductoResponse actualizarQuitandoImagen(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request) {
+        return actualizar(id, request, null, false, true);
+    }
+
+    @Transactional
+    public ProductoResponse actualizar(@NotNull @Positive Long id, @NotNull @Valid ProductoRequest request, MultipartFile imagen) {
+        return actualizar(id, request, imagen, true, false);
+    }
+
+    private ProductoResponse actualizar(Long id, ProductoRequest request, MultipartFile imagen, boolean conservarImagen, boolean quitarImagen) {
+        Producto entity = bloquearProducto(id);
+        boolean activo = request.activo();
+        Categoria categoria = buscarCategoria(request.categoriaId(), activo);
+        UnidadMedida unidad = buscarUnidad(request.unidadMedidaId(), activo);
+        if (activo) validarReferenciasActivas(categoria, unidad);
         String codigo = request.codigo().trim();
         validarCodigo(codigo, id);
+        String imagenUrl = entity.getImagenUrl();
+        if (imagen != null) {
+            boolean compartida = imagenUrl != null && productoRepository.existsByImagenUrlAndIdNot(imagenUrl, id);
+            imagenUrl = imagenStorage.subirProducto(imagen, compartida ? null : imagenUrl);
+        } else if (quitarImagen) {
+            if (imagenUrl != null && !productoRepository.existsByImagenUrlAndIdNot(imagenUrl, id)) {
+                imagenStorage.eliminarProductoAlConfirmar(imagenUrl);
+            }
+            imagenUrl = null;
+        }
         productoMapper.updateEntity(request, categoria, unidad, entity);
         entity.setCodigo(codigo);
+        if (conservarImagen || quitarImagen) {
+            entity.setImagenUrl(imagenUrl);
+        }
         return productoMapper.toResponse(guardar(entity));
     }
 
     @Transactional
     public ProductoResponse cambiarEstado(@NotNull @Positive Long id, boolean activo) {
-        Producto entity = buscarProducto(id);
+        Producto entity = bloquearProducto(id);
+        if (activo) {
+            Categoria categoria = buscarCategoria(entity.getCategoria().getId(), true);
+            UnidadMedida unidad = buscarUnidad(entity.getUnidadMedida().getId(), true);
+            validarReferenciasActivas(categoria, unidad);
+        }
         entity.setActivo(activo);
         return productoMapper.toResponse(guardar(entity));
     }
@@ -86,16 +140,33 @@ public class ProductoService {
 
     private Producto buscarProducto(Long id) {
         return productoRepository.findById(id)
-            .orElseThrow(() -> new RecursoNoEncontradoException("No existe el producto con ID " + id + "."));
+            .orElseThrow(() -> productoNoEncontrado(id));
     }
 
-    private Categoria buscarCategoria(Long id) {
-        return categoriaRepository.findById(id)
+    private Producto bloquearProducto(Long id) {
+        return productoRepository.findByIdForUpdate(id).orElseThrow(() -> productoNoEncontrado(id));
+    }
+
+    private RecursoNoEncontradoException productoNoEncontrado(Long id) {
+        return new RecursoNoEncontradoException("No existe el producto con ID " + id + ".");
+    }
+
+    private void validarReferenciasActivas(Categoria categoria, UnidadMedida unidad) {
+        if (!Boolean.TRUE.equals(categoria.getActivo())) {
+            throw new ConflictoException("El producto necesita una categoría activa.");
+        }
+        if (!Boolean.TRUE.equals(unidad.getActivo())) {
+            throw new ConflictoException("El producto necesita una unidad de medida activa.");
+        }
+    }
+
+    private Categoria buscarCategoria(Long id, boolean bloquear) {
+        return (bloquear ? categoriaRepository.findByIdForUpdate(id) : categoriaRepository.findById(id))
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la categoria con ID " + id + "."));
     }
 
-    private UnidadMedida buscarUnidad(Long id) {
-        return unidadMedidaRepository.findById(id)
+    private UnidadMedida buscarUnidad(Long id, boolean bloquear) {
+        return (bloquear ? unidadMedidaRepository.findByIdForUpdate(id) : unidadMedidaRepository.findById(id))
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe la unidad de medida con ID " + id + "."));
     }
 

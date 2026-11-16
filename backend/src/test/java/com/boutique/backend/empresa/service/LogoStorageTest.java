@@ -5,6 +5,8 @@ import java.util.HexFormat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -86,6 +88,44 @@ class LogoStorageTest {
         storage.subir(logo, OBJETOS + "public/otro-bucket/logos/" + NOMBRE_ANTERIOR);
 
         completar(TransactionSynchronization.STATUS_COMMITTED);
+        server.verify();
+    }
+
+    @Test
+    void subeLaFotoDelProductoEnSuCarpetaYReemplazaLaAnteriorAlConfirmar() {
+        String anterior = OBJETOS + "public/marca/productos/" + NOMBRE_ANTERIOR;
+        server.expect(requestTo(matchesPattern(
+                "https://example\\.supabase\\.co/storage/v1/object/marca/productos/[a-f0-9-]+\\.png")))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withSuccess());
+        server.expect(requestTo(OBJETOS + "marca/productos/" + NOMBRE_ANTERIOR))
+            .andExpect(method(HttpMethod.DELETE))
+            .andExpect(request -> assertTrue(transaccionTerminada))
+            .andRespond(withSuccess());
+
+        String url = storage.subirProducto(logo, anterior);
+        assertTrue(url.startsWith(OBJETOS + "public/marca/productos/"));
+        assertNotEquals(anterior, url);
+
+        completar(TransactionSynchronization.STATUS_COMMITTED);
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void eliminaSoloLaFotoAdministradaDelProductoAlConfirmar(boolean confirma) {
+        if (confirma) {
+            server.expect(requestTo(OBJETOS + "marca/productos/" + NOMBRE_ANTERIOR))
+                .andExpect(method(HttpMethod.DELETE))
+                .andExpect(header("apikey", CLAVE))
+                .andExpect(request -> assertTrue(transaccionTerminada))
+                .andRespond(withSuccess());
+        }
+
+        storage.eliminarProductoAlConfirmar(URL_ANTERIOR);
+        storage.eliminarProductoAlConfirmar(OBJETOS + "public/marca/productos/" + NOMBRE_ANTERIOR);
+        completar(confirma ? TransactionSynchronization.STATUS_COMMITTED : TransactionSynchronization.STATUS_ROLLED_BACK);
+
         server.verify();
     }
 

@@ -1,12 +1,12 @@
 import { PanelLink } from '@/routes/PanelLink'
 import { useId, useState } from 'react'
-import { Banknote, Boxes, ChevronDown, House, Menu, Package, Settings2, ShoppingBag, ShoppingCart, Truck, UserRound, UsersRound } from 'lucide-react'
+import { Banknote, Boxes, ChevronDown, House, Menu, Package, Settings, ShoppingBag, ShoppingCart, Truck, UserRound, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { visibleNavigation } from '@/routes/navigation'
 import type { NavItem } from '@/routes/navigation'
 import { ThemeToggle } from './ThemeToggle'
 
-const icons = { inicio: House, ventas: ShoppingBag, caja: Banknote, productos: Package, compras: ShoppingCart, inventario: Boxes, clientes: UserRound, proveedores: Truck, usuarios: UsersRound, configuracion: Settings2 }
+const icons = { inicio: House, ventas: ShoppingBag, caja: Banknote, productos: Package, compras: ShoppingCart, inventario: Boxes, clientes: UserRound, proveedores: Truck, usuarios: UsersRound, configuracion: Settings }
 
 type SidebarProps = {
   nombreEmpresa: string
@@ -53,7 +53,6 @@ export function Sidebar({ nombreEmpresa, roles, path, onNavigate, collapsed = fa
     <nav id={navId} aria-label="Navegación principal">{visibleNavigation(roles).map(item => <NavigationItem key={item.icon} item={item} path={path} onNavigate={onNavigate} collapsed={collapsed} onExpandSidebar={onToggle} />)}</nav>
     <div className="sidebar-bottom">
       <ThemeToggle />
-      <p className="sidebar-footnote" title={nombreEmpresa}>{nombreEmpresa}</p>
     </div>
   </div>
 }

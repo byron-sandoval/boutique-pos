@@ -24,7 +24,9 @@ public class DetalleIngresoMapper {
     }
 
     public DetalleIngresoResponse toResponse(DetalleIngreso detalle) {
-        return new DetalleIngresoResponse(detalle.getId(), detalle.getVariante().getId(),
+        VarianteProducto variante = detalle.getVariante();
+        return new DetalleIngresoResponse(detalle.getId(), variante.getId(), variante.getProducto().getNombre(),
+            variante.getSku(), variante.getTalla(), variante.getColor(),
             detalle.getCantidad(), detalle.getCostoUnitario(), detalle.getMonto());
     }
 }

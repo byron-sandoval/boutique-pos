@@ -1,5 +1,11 @@
 package com.boutique.backend.producto.service;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.boutique.backend.producto.dto.VarianteLoteRequest;
 import com.boutique.backend.producto.dto.VarianteProductoRequest;
 import com.boutique.backend.producto.dto.VarianteProductoResponse;
 import com.boutique.backend.producto.entity.Producto;
@@ -49,6 +55,42 @@ public class VarianteProductoService {
         validarDuplicados(normalizado, null);
         VarianteProducto entity = varianteProductoMapper.toEntity(normalizado, producto);
         return varianteProductoMapper.toResponse(guardar(entity));
+    }
+
+    @Transactional
+    public List<VarianteProductoResponse> crearLote(@NotNull @Valid VarianteLoteRequest request) {
+        Producto producto = buscarProducto(request.productoId());
+        if (!Boolean.TRUE.equals(producto.getActivo())) {
+            throw new ConflictoException("El producto debe estar activo para registrar el lote.");
+        }
+        Set<String> skus = new HashSet<>();
+        Set<String> codigosBarras = new HashSet<>();
+        Set<Combinacion> combinaciones = new HashSet<>();
+        List<VarianteProducto> nuevas = new ArrayList<>();
+        for (var fila : request.variantes()) {
+            var datos = normalizar(new VarianteProductoRequest(producto.getId(),
+                fila.talla(), fila.color(), fila.sku(), fila.codigoBarras(), true));
+            try {
+                if (!skus.add(datos.sku())) {
+                    throw new ConflictoException("El SKU está repetido en el lote.");
+                }
+                if (datos.codigoBarras() != null && !codigosBarras.add(datos.codigoBarras())) {
+                    throw new ConflictoException("El código de barras está repetido en el lote.");
+                }
+                if (!combinaciones.add(new Combinacion(datos.talla(), datos.color()))) {
+                    throw new ConflictoException("La talla y el color están repetidos en el lote.");
+                }
+                validarDuplicados(datos, null);
+            } catch (ConflictoException conflicto) {
+                throw new ConflictoException("Variante " + datos.sku() + ". " + conflicto.getMessage(), conflicto);
+            }
+            nuevas.add(varianteProductoMapper.toEntity(datos, producto));
+        }
+        return CatalogoSupport.guardar(() -> varianteProductoRepository.saveAllAndFlush(nuevas))
+            .stream().map(varianteProductoMapper::toResponse).toList();
+    }
+
+    private record Combinacion(String talla, String color) {
     }
 
     @Transactional

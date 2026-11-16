@@ -8,11 +8,13 @@ import com.boutique.backend.producto.dto.ProductoResponse;
 import com.boutique.backend.producto.service.ProductoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,7 +26,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -39,8 +43,12 @@ public class ProductoController {
     @GetMapping
     public PagedModel<ProductoResponse> listar(
         @RequestParam(required = false) @Positive Long categoriaId,
+        @RequestParam(required = false) @Size(max = 100) String busqueda,
         @PageableDefault(size = 20, sort = "id") Pageable pageable
     ) {
+        if (busqueda != null && !busqueda.isBlank()) {
+            return new PagedModel<>(productoService.buscar(busqueda.strip(), categoriaId, pageable));
+        }
         Page<ProductoResponse> page = categoriaId == null
             ? productoService.listar(pageable)
             : productoService.listarPorCategoria(categoriaId, pageable);
@@ -53,19 +61,36 @@ public class ProductoController {
         return productoService.obtenerPorId(id);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductoResponse> crear(@Valid @RequestBody ProductoRequest request) {
-        ProductoResponse response = productoService.crear(request);
+        return creado(productoService.crear(request));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProductoResponse> crearConImagen(@Valid @RequestPart("producto") ProductoRequest request,
+        @RequestPart(name = "imagen", required = false) MultipartFile imagen) {
+        return creado(productoService.crear(request, imagen));
+    }
+
+    private ResponseEntity<ProductoResponse> creado(ProductoResponse response) {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
             .path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
     }
 
-    @PutMapping("/{id}")
-    public ProductoResponse actualizar(@PathVariable @Positive Long id, @Valid @RequestBody ProductoRequest request) {
-        return productoService.actualizar(id, request);
+    @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ProductoResponse actualizar(@PathVariable @Positive Long id, @Valid @RequestBody ProductoRequest request,
+        @RequestParam(name = "quitarImagen", defaultValue = "false") boolean quitarImagen) {
+        return quitarImagen ? productoService.actualizarQuitandoImagen(id, request) : productoService.actualizar(id, request);
     }
 
+
+    @PutMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProductoResponse actualizarConImagen(@PathVariable @Positive Long id,
+        @Valid @RequestPart("producto") ProductoRequest request,
+        @RequestPart(name = "imagen", required = false) MultipartFile imagen) {
+        return productoService.actualizar(id, request, imagen);
+    }
 
     @PatchMapping("/{id}/estado")
     public ProductoResponse cambiarEstado(@PathVariable @Positive Long id, @Valid @RequestBody EstadoCatalogoRequest request) {
