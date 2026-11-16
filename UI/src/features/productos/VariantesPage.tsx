@@ -72,7 +72,7 @@ export function VariantesPage({ puedeEditar }: { puedeEditar: boolean }) {
               setProductoFiltro(event.currentTarget.value)
             }}>
             <option value="">Todos los productos</option>
-            {productos.map(producto => <option key={producto.id} value={producto.id}>{producto.codigo} · {producto.nombre}</option>)}
+            {productos.map(producto => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}
           </select>
           {puedeEditar && <Button disabled={!productosActivos.length} onClick={() => abrir({ tipo: 'crear' })}>
             <Plus size={16} aria-hidden="true" />Nueva variante
@@ -177,10 +177,10 @@ function VarianteForm({ variante, productos, productoInicial, onClose, onSaved }
       <fieldset disabled={busy}>
         <div className="business-fields">
           <label className="business-field-wide">Producto {variante ? <input readOnly
-            value={productoActual ? `${productoActual.codigo} · ${productoActual.nombre}` : `Producto #${variante.productoId}`} />
+            value={productoActual?.nombre ?? `Producto #${variante.productoId}`} />
             : <select name="productoId" required defaultValue={productos.some(producto => String(producto.id) === productoInicial) ? productoInicial : ''}>
               <option value="">Selecciona un producto</option>
-              {productos.map(producto => <option key={producto.id} value={producto.id}>{producto.codigo} · {producto.nombre}</option>)}
+              {productos.map(producto => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}
             </select>}</label>
           <label>SKU<input name="sku" required pattern={String.raw`.*\S.*`} maxLength={50} defaultValue={variante?.sku} /></label>
           <label>Código de barras<input name="codigoBarras" maxLength={50} defaultValue={variante?.codigoBarras ?? ''} /></label>

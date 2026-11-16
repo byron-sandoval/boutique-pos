@@ -71,7 +71,7 @@ export function VarianteLoteDialog({ productos, productoInicial, onClose, onSave
           <label className="business-field-wide">Producto
             <select value={productoId} onChange={event => setProductoId(event.currentTarget.value)} required>
               <option value="">Selecciona un producto</option>
-              {productos.map(item => <option key={item.id} value={item.id}>{item.codigo} · {item.nombre}</option>)}
+              {productos.map(item => <option key={item.id} value={item.id}>{item.nombre}</option>)}
             </select>
           </label>
         </div>

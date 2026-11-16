@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useRemote, useSave } from '@/features/empresa/hooks'
 import { listarProductosReferencia, listarVariantes } from '@/features/productos/data'
+import { useFlashMessage } from '@/lib/use-flash-message'
 import { cargarSucursalCompra, listarProveedoresCompra, monedaCompra, obtenerUltimoCosto, registrarCompra } from './data'
 import '@/features/empresa/empresa.css'
 import './compras.css'
 
-type Fila = { varianteId: number; etiqueta: string; cantidad: string; costo: string }
+type Fila = { varianteId: number; producto: string; variante: string; cantidad: string; costo: string }
 const maximoCentavos = 999_999_999_999
 const maximoCantidad = 2_147_483_647
 const maximoLineas = 500
@@ -34,7 +35,7 @@ export function RegistrarCompraPage() {
   const [productoId, setProductoId] = useState('')
   const [varianteId, setVarianteId] = useState('')
   const [filas, setFilas] = useState<Fila[]>([])
-  const [registrada, setRegistrada] = useState('')
+  const [registrada, setRegistrada] = useFlashMessage()
   const [errorForm, setErrorForm] = useState('')
   const cargarVariantes = useCallback((signal: AbortSignal) =>
     productoId ? listarVariantes(productoId, signal) : Promise.resolve([]), [productoId])
@@ -54,9 +55,9 @@ export function RegistrarCompraPage() {
   function agregarVariante() {
     const variante = variantesDisponibles.find(item => String(item.id) === varianteId)
     if (!variante || !producto) return
-    const etiqueta = [producto.nombre, variante.sku, variante.talla, variante.color].filter(Boolean).join(' · ')
+    const nombreVariante = [variante.sku, variante.talla, variante.color].filter(Boolean).join(' · ')
     setFilas(actual => actual.length >= maximoLineas || actual.some(fila => fila.varianteId === variante.id)
-      ? actual : [...actual, { varianteId: variante.id, etiqueta, cantidad: '1', costo: '' }])
+      ? actual : [...actual, { varianteId: variante.id, producto: producto.nombre, variante: nombreVariante, cantidad: '1', costo: '' }])
     setVarianteId('')
     setErrorForm('')
     clearError()
@@ -68,8 +69,9 @@ export function RegistrarCompraPage() {
     clearError()
   }
 
-  function enviar(form: FormData) {
+  function enviar(formulario: HTMLFormElement) {
     if (!sucursalActual?.activa || !proveedor || !filas.length) return
+    const form = new FormData(formulario)
     const noDocumento = String(form.get('noDocumento') ?? '').trim()
     if (!noDocumento) { setErrorForm('Ingresa el número de documento.'); return }
     if (total === null) { setErrorForm('Indica una cantidad entera y un costo de hasta dos decimales para cada variante.'); return }
@@ -85,7 +87,8 @@ export function RegistrarCompraPage() {
       observaciones: String(form.get('observaciones') ?? '').trim() || null,
       detalles,
     }), compra => {
-      setRegistrada(`Compra ${compra.noDocumento} registrada por ${monedaCompra.format(compra.total)}.`)
+      formulario.reset()
+      setRegistrada(`Compra ${compra.noDocumento} registrada por ${monedaCompra.format(compra.total)}. Las existencias se actualizaron.`)
       setProveedorId('')
       setFilas([])
       setProductoId('')
@@ -97,12 +100,10 @@ export function RegistrarCompraPage() {
     <div className="page-heading business-page-heading">
       <div><h1>Registrar compra</h1><p>Registra las unidades que llegaron a tu sucursal.</p></div>
     </div>
-    {registrada ? <Card className="business-table-card">
-      <p className="business-success" role="status">{registrada} Las existencias se actualizaron.</p>
-      <Button onClick={() => setRegistrada('')}>Registrar otra compra</Button>
-    </Card> : <form className="compra-form" onSubmit={event => {
+    {registrada && <p className="business-success" role="status">{registrada}</p>}
+    <form className="compra-form" onSubmit={event => {
       event.preventDefault()
-      enviar(new FormData(event.currentTarget))
+      enviar(event.currentTarget)
     }}>
       <Card className="business-table-card">
         <div className="business-section-heading">
@@ -139,7 +140,7 @@ export function RegistrarCompraPage() {
         <fieldset disabled={busy || !productosActivos.length} className="business-fields compra-selector">
           <label>Producto<select value={productoId} onChange={event => { setProductoId(event.currentTarget.value); setVarianteId('') }}>
             <option value="">Selecciona un producto</option>
-            {productosActivos.map(item => <option key={item.id} value={item.id}>{item.codigo} · {item.nombre}</option>)}
+            {productosActivos.map(item => <option key={item.id} value={item.id}>{item.nombre}</option>)}
           </select></label>
           <label>Variante<select value={varianteId} onChange={event => setVarianteId(event.currentTarget.value)} disabled={!variantesDisponibles.length}>
             <option value="">{producto && variantes.result.status === 'loading' ? 'Cargando variantes…' : 'Selecciona una variante'}</option>
@@ -157,18 +158,20 @@ export function RegistrarCompraPage() {
         {filas.length === maximoLineas && <p role="status">La compra admite hasta {maximoLineas} líneas.</p>}
         {filas.length > 0 && <div className="business-table-scroll compra-mercaderia-scroll" role="region" aria-label="Mercadería recibida" tabIndex={0}>
           <table className="business-table">
-            <thead><tr><th scope="col">Producto y variante</th><th scope="col">Cantidad</th><th scope="col">Costo unitario</th>
+            <thead><tr><th scope="col">Producto</th><th scope="col">Variante</th><th scope="col">Cantidad</th><th scope="col">Costo unitario</th>
               <th scope="col">Importe</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead>
             <tbody>{filas.map((fila, indice) => {
               const monto = montos[indice]
+              const etiqueta = `${fila.producto} · ${fila.variante}`
               return <tr key={fila.varianteId}>
-                <th scope="row"><span className="compra-linea">{fila.etiqueta}</span></th>
+                <th scope="row"><span className="compra-linea">{fila.producto}</span></th>
+                <td><span className="compra-linea">{fila.variante}</span></td>
                 <td><input type="number" min={1} max={maximoCantidad} step={1} required disabled={busy}
-                  aria-label={`Cantidad de ${fila.etiqueta}`} value={fila.cantidad}
+                  aria-label={`Cantidad de ${etiqueta}`} value={fila.cantidad}
                   onChange={event => actualizarFila(fila.varianteId, 'cantidad', event.currentTarget.value)} /></td>
                 <td><CostoUnitario fila={fila} disabled={busy} onChange={valor => actualizarFila(fila.varianteId, 'costo', valor)} /></td>
                 <td className="tabular-nums whitespace-nowrap"><span className="compra-linea">{monto !== null && monedaCompra.format(monto / 100)}</span></td>
-                <td><div className="compra-linea justify-center"><Button type="button" variant="ghost" size="icon-sm" disabled={busy} aria-label={`Quitar ${fila.etiqueta}`}
+                <td><div className="compra-linea justify-center"><Button type="button" variant="destructive" size="icon-sm" disabled={busy} aria-label={`Quitar ${etiqueta}`}
                   onClick={() => {
                     setFilas(actual => actual.filter(item => item.varianteId !== fila.varianteId))
                     setErrorForm('')
@@ -186,7 +189,7 @@ export function RegistrarCompraPage() {
           </Button>
         </div>
       </Card>
-    </form>}
+    </form>
   </div>
 }
 
@@ -203,7 +206,7 @@ function CostoUnitario({ fila, disabled, onChange }: { fila: Fila; disabled: boo
 
   return <>
     <input inputMode="decimal" maxLength={13} required disabled={disabled}
-      aria-label={`Costo de ${fila.etiqueta}`} aria-describedby={referenciaId} value={fila.costo}
+      aria-label={`Costo de ${fila.producto} · ${fila.variante}`} aria-describedby={referenciaId} value={fila.costo}
       onChange={event => onChange(event.currentTarget.value)} />
     <small id={referenciaId} className="business-help mt-1 block">{referencia}</small>
   </>
