@@ -18,7 +18,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -117,10 +119,13 @@ class InventarioIngresoControllerTest {
 
     @Test
     void inventarioSeCreaEnCero() throws Exception {
-        when(inventarios.crear(any())).thenReturn(new InventarioResponse(1L, 4L, 1L, 0, 2, null));
+        when(inventarios.crear(any())).thenReturn(new InventarioResponse(1L, 4L, 1L, 0, 2, null,
+            "Camisa", "CAM-M-AZUL", "M", "Azul", "Centro"));
         mvc.perform(post("/api/inventarios").contentType(MediaType.APPLICATION_JSON)
             .content("{\"varianteId\":4,\"sucursalId\":1,\"stockMinimo\":2}"))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0));
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.stock").value(0))
+            .andExpect(jsonPath("$.producto").value("Camisa"))
+            .andExpect(jsonPath("$.sucursal").value("Centro"));
     }
 
     @Test
@@ -137,6 +142,18 @@ class InventarioIngresoControllerTest {
             .content("{\"varianteId\":4,\"sucursalId\":1,\"stockMinimo\":-1}"))
             .andExpect(status().isBadRequest());
         verifyNoInteractions(inventarios);
+    }
+
+    @Test
+    void paginaLasAlertasConElStockMasBajoPrimero() throws Exception {
+        var pagina = PageRequest.of(1, 20, Sort.by("stock", "id"));
+        when(inventarios.listarAlertas(pagina)).thenReturn(Page.empty(pagina));
+
+        mvc.perform(get("/api/inventarios/alertas").param("page", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page.number").value(1));
+
+        verify(inventarios).listarAlertas(pagina);
     }
 
     @Test

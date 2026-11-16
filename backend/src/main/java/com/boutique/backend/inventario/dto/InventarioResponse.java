@@ -6,6 +6,11 @@ public record InventarioResponse(
     Long sucursalId,
     Integer stock,
     Integer stockMinimo,
-    Integer stockMaximo
+    Integer stockMaximo,
+    String producto,
+    String sku,
+    String talla,
+    String color,
+    String sucursal
 ) {
 }

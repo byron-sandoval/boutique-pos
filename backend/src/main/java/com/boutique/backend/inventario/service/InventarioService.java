@@ -54,6 +54,10 @@ public class InventarioService {
             .orElseThrow(() -> new RecursoNoEncontradoException("No existe el inventario con ID " + id + ".")));
     }
 
+    public Page<InventarioResponse> listarAlertas(@NotNull Pageable pageable) {
+        return inventarioRepository.listarAlertas(pageable).map(mapper::toResponse);
+    }
+
     @Transactional
     public InventarioResponse crear(@NotNull @Valid InventarioCreateRequest request) {
         Sucursal sucursal = sucursalRepository.findById(request.sucursalId())

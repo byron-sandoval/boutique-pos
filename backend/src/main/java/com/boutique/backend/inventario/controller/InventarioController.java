@@ -41,6 +41,12 @@ public class InventarioController {
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
+    @GetMapping("/alertas")
+    public PagedModel<InventarioResponse> listarAlertas(@PageableDefault(size = 20, sort = {"stock", "id"}) Pageable pageable) {
+        return new PagedModel<>(inventarioService.listarAlertas(pageable));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_CAJERO')")
     @GetMapping("/{id}")
     public InventarioResponse obtenerPorId(@PathVariable @Positive Long id) {
         return inventarioService.obtenerPorId(id);
